@@ -9,74 +9,99 @@ from .tags import TAG_REGISTRY, Tag
 
 def build_topic_instruction(selected_tag_ids: List[str]) -> str:
     """
-    Given a list of tag IDs, build a natural-language instruction to send to the LLM
-    so it can generate a single writing prompt.
+    Given a list of tag IDs, build a natural-language instruction for the LLM
+    to generate a single story-like sentence or short paragraph that implies a story.
+    The 'elements' inside tags are used only as invisible examples for the LLM.
     """
 
-    if not selected_tag_ids:
-        # fallback: extremely generic
-        return (
-            "Generate a single creative writing prompt about a small, meaningful moment "
-            "in someone's life. Return only the prompt sentence or paragraph."
-        )
-
-    # group tags by category (genre, mood, place...)
+    # group tags by category (genre, mood, place, time, event, item, skill, form, ...)
     tags_by_cat: dict[str, List[Tag]] = defaultdict(list)
     for tid in selected_tag_ids:
         tag = TAG_REGISTRY.get(tid)
         if tag:
             tags_by_cat[tag.category].append(tag)
 
-    # helper: pick 1–2 random elements from the tags in one category
-    def pick_elements(cat: str, max_count: int = 2) -> List[str]:
+    # Helper: get visible names for genres / form
+    genre_labels = [t.label for t in tags_by_cat.get("genre", [])]
+    form_tags = tags_by_cat.get("form", [])
+
+    # Helper: pick some *example* elements per category (hidden from user)
+    def pick_example_elements(cat: str, max_count: int = 3) -> List[str]:
         candidates: List[str] = []
         for t in tags_by_cat.get(cat, []):
             candidates.extend(t.elements)
         random.shuffle(candidates)
         return candidates[:max_count]
 
-    genre_phrases   = pick_elements("genre", 2)
-    mood_phrases    = pick_elements("mood", 2)
-    place_phrases   = pick_elements("place", 2)
-    time_phrases    = pick_elements("time", 2)
-    event_phrases   = pick_elements("event", 2)
-    item_phrases    = pick_elements("item", 2)
-    skill_phrases   = pick_elements("skill", 2)
+    mood_examples   = pick_example_elements("mood", 3)
+    place_examples  = pick_example_elements("place", 3)
+    time_examples   = pick_example_elements("time", 3)
+    event_examples  = pick_example_elements("event", 3)
+    item_examples   = pick_example_elements("item", 3)
+    skill_examples  = pick_example_elements("skill", 2)
 
-    # form control
-    form_tags = tags_by_cat.get("form", [])
+    # Decide output form
     if any(t.id == "form_sentence" for t in form_tags):
-        form_instruction = "Return the prompt as a single evocative sentence."
+        form_instruction = (
+            "Write exactly one sentence that reads like a moment from a story. "
+            "It should feel like the beginning or a fragment of a scene."
+        )
     elif any(t.id == "form_paragraph" for t in form_tags):
-        form_instruction = "Return the prompt as a short paragraph (2–4 sentences)."
+        form_instruction = (
+            "Write a short paragraph (2–4 sentences) that reads like a moment from a story. "
+            "It should feel like the beginning or a fragment of a scene."
+        )
     else:
-        form_instruction = "Return the prompt as one or two sentences."
+        form_instruction = (
+            "Write one or two sentences that read like a moment from a story. "
+            "It should feel like the beginning or a fragment of a scene."
+        )
 
     lines: List[str] = []
-    lines.append("You are a writing coach creating prompts for daily practice.")
-    lines.append("Generate exactly one creative writing prompt.")
-    lines.append("Use the following tendencies as inspiration:")
 
-    if genre_phrases:
-        lines.append(f"- Style / genre: {', '.join(genre_phrases)}.")
-    if mood_phrases:
-        lines.append(f"- Atmosphere / mood: {', '.join(mood_phrases)}.")
-    if place_phrases:
-        lines.append(f"- Setting or place: {', '.join(place_phrases)}.")
-    if time_phrases:
-        lines.append(f"- Time: {', '.join(time_phrases)}.")
-    if event_phrases:
-        lines.append(f"- Central event or situation: {', '.join(event_phrases)}.")
-    if item_phrases:
-        lines.append(f"- Important objects: {', '.join(item_phrases)}.")
-    if skill_phrases:
-        lines.append(f"- Writing focus: {', '.join(skill_phrases)}.")
-
+    # High-level role + behavior
     lines.append(
-        "Do not explain the prompt or mention these notes directly. "
-        "Just output the final prompt the writer should respond to."
+        "You are a writing coach creating short story-like prompts for daily writing practice."
+    )
+    lines.append(
+        "Generate exactly one story-like snippet that implies a larger story, "
+        "rather than an instruction. It should sound as if it comes from the beginning "
+        "or a small fragment of a longer narrative."
+    )
+
+    # Visible genre info
+    if genre_labels:
+        lines.append(
+            "The style/genre should be somewhere in the space suggested by these genre labels: "
+            + ", ".join(genre_labels)
+            + "."
+        )
+
+    # Invisible inspirations for other dimensions
+    # Tell the model clearly that these are *examples*, not mandatory phrases.
+    def add_example_block(title: str, examples: List[str]):
+        if examples:
+            joined = "; ".join(examples)
+            lines.append(
+                f"As inspiration for the {title}, think of examples like: {joined}. "
+                f"These are just references to the feeling; do NOT copy these phrases literally. "
+                f"Invent your own details that fit this space."
+            )
+
+    add_example_block("atmosphere or mood", mood_examples)
+    add_example_block("setting or place", place_examples)
+    add_example_block("time or period", time_examples)
+    add_example_block("central situation or event", event_examples)
+    add_example_block("important objects or props", item_examples)
+    add_example_block("writing focus (what kind of scene to emphasize)", skill_examples)
+
+    # Output and constraints
+    lines.append(
+        "Do NOT say things like 'Write about...' or 'Describe...'. "
+        "Do NOT address the reader directly, and do NOT explain that this is a prompt. "
+        "Simply output the story-like snippet itself, as if it were taken from a story."
     )
     lines.append(form_instruction)
 
-    # This full string becomes the user message to the LLM
+    # final instruction string
     return "\n".join(lines)

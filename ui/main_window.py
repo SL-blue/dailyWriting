@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QFrame,
     QDialog,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt
 
@@ -199,17 +200,23 @@ class MainWindow(QMainWindow):
         self.show_session()
 
     def start_random_topic(self):
-        # 1. Let the user choose tags
+        from ui.tag_selector_dialog import TagSelectorDialog
+
         dlg = TagSelectorDialog(self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
 
         tag_ids = dlg.selected_tags()
-
-        # 2. Ask topic generator to create a prompt with these tags
         topic = self.topic_generator.generate_topic(tag_ids)
 
-        # 3. Start session with the generated topic
+        # <-- Here is the right place for QMessageBox.information
+        if self.topic_generator.last_used_fallback:
+            QMessageBox.information(
+                self,
+                "AI temporarily unavailable",
+                "Gemini was overloaded or unreachable, so a local backup prompt was used instead."
+            )
+
         self.session_view.start_new_session(mode="random_topic", topic=topic)
         self.show_session()
 
