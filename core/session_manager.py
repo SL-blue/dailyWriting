@@ -1,0 +1,60 @@
+# core/session_manager.py
+
+import uuid
+from datetime import datetime, date
+from typing import Optional
+
+from .models import WritingSession
+from .utils import mixed_word_count
+from .storage import save_session
+from .streak_days import mark_day_completed
+
+
+class SessionManager:
+    def __init__(self):
+        self.current_session: WritingSession | None = None
+
+    def start_session(self, mode: str, topic: str | None) -> WritingSession:
+        today = date.today()
+        now = datetime.now()
+        sess = WritingSession(
+            id=str(uuid.uuid4()),
+            title=today.isoformat(),  # default title = date
+            session_date=today,
+            mode=mode,
+            topic=topic,
+            content="",
+            start_time=now,
+            end_time=None,
+            duration_seconds=0,
+            char_count=0,
+            word_count=0,
+        )
+        self.current_session = sess
+        return sess
+
+    def update_content(self, text: str) -> None:
+        if not self.current_session:
+            return
+        self.current_session.content = text
+        self.current_session.char_count = len(text)
+        self.current_session.word_count = mixed_word_count(text)
+
+    def finish_session(self) -> Optional[WritingSession]:
+        if not self.current_session:
+            return None
+
+        now = datetime.now()
+        sess = self.current_session
+        sess.end_time = now
+        sess.duration_seconds = int((now - sess.start_time).total_seconds())
+
+        text = sess.content
+        sess.char_count = len(text)
+        sess.word_count = mixed_word_count(text)
+
+        save_session(sess)
+        mark_day_completed(sess.session_date)
+
+        self.current_session = None
+        return sess
