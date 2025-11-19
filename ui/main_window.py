@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QLabel,
     QFrame,
+    QDialog,
 )
 from PyQt6.QtCore import Qt
 
@@ -24,6 +25,8 @@ from ui.session_view import SessionView
 from ui.calendar_view import CalendarView
 from ui.session_list_dialog import SessionListDialog
 from ui.history_view import HistoryView
+from ui.tag_selector_dialog import TagSelectorDialog
+
 
 
 class MainWindow(QMainWindow):
@@ -38,6 +41,7 @@ class MainWindow(QMainWindow):
 
 
         self.session_manager = SessionManager()
+        self.topic_generator = TopicGenerator()
 
         # ----- central widget & root layout -----
         central = QWidget()
@@ -195,9 +199,20 @@ class MainWindow(QMainWindow):
         self.show_session()
 
     def start_random_topic(self):
-        topic = self.topic_generator.generate_topic()
+        # 1. Let the user choose tags
+        dlg = TagSelectorDialog(self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        tag_ids = dlg.selected_tags()
+
+        # 2. Ask topic generator to create a prompt with these tags
+        topic = self.topic_generator.generate_topic(tag_ids)
+
+        # 3. Start session with the generated topic
         self.session_view.start_new_session(mode="random_topic", topic=topic)
         self.show_session()
+
 
 
     def on_session_title_changed(self, title: str):
@@ -310,7 +325,7 @@ class MainWindow(QMainWindow):
             font-weight: 700;
         }
         QLabel#PromptBody {
-            color: #000000;
+            color: #333333;
             font-size: 14px;
         }
         QLabel#PromptTags {

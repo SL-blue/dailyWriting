@@ -2,55 +2,63 @@
 
 import os
 import random
-import requests
+from typing import List, Optional
+
+from google import genai
+
+from .prompt_builder import build_topic_instruction
 
 
 class TopicGenerator:
-    def __init__(self):
-        self._fallback_prompts = [
-            "Describe a place that only exists in your memories.",
-            "Write about a conversation you wish you had finished.",
-            "Describe a day when everything felt slightly out of sync.",
-            "Write a scene where two strangers share an unexpected moment of kindness.",
-            "Describe a decision you made that quietly changed your life.",
-        ]
-        # Example: read key + endpoint from environment
-        self.api_key = os.getenv("LLM_API_KEY")
-        self.api_url = os.getenv("LLM_API_URL")  # e.g. "https://.../v1/chat/completions"
+    """
+    Topic generator using Google Gemini via google-genai.
+    """
 
-    def generate_topic(self) -> str:
-        # If no API configured, fall back gracefully
-        if not self.api_key or not self.api_url:
+    def __init__(self) -> None:
+        self.api_key = os.getenv("GOOGLE_API_KEY")
+        # pick a valid model for your project; you can change this
+        self.model: str = "gemini-2.5-flash"
+
+        self._fallback_prompts = [
+            "Write about a moment that quietly changed you.",
+            "Describe a place you remember only in fragments.",
+            "Write about an unexpected conversation.",
+        ]
+
+        if self.api_key:
+            print("TopicGenerator: GOOGLE_API_KEY found, length =", len(self.api_key))
+            self.client = genai.Client(api_key=self.api_key)
+        else:
+            print("TopicGenerator: GOOGLE_API_KEY NOT set – using fallback prompts only.")
+            self.client = None
+
+    def generate_topic(self, tag_ids: Optional[List[str]] = None) -> str:
+        """
+        Generate a writing prompt based on selected tag ids.
+        """
+        tag_ids = tag_ids or []
+        instruction = build_topic_instruction(tag_ids)
+
+        # No client => always fallback
+        if not self.client:
+            print("TopicGenerator: no client – returning fallback prompt.")
             return random.choice(self._fallback_prompts)
 
-        prompt = (
-            "Generate a single creative writing prompt for a daily writing exercise. "
-            "Return just the prompt sentence, no extra explanation."
-        )
-
         try:
-            response = requests.post(
-                self.api_url,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": "your-model-name-here",
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.8,
-                },
-                timeout=15,
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=instruction,
             )
-            response.raise_for_status()
-            data = response.json()
 
-            # This part depends on the provider’s response format;
-            # adjust to match your API.
-            topic_text = data["choices"][0]["message"]["content"].strip()
-            return topic_text or random.choice(self._fallback_prompts)
+            text = (response.text or "").strip()
+            print("TopicGenerator: Gemini response text =", repr(text))
+
+            if not text:
+                print("TopicGenerator: empty response text – using fallback.")
+                return random.choice(self._fallback_prompts)
+
+            return text
 
         except Exception as e:
-            # Log/print in real code; for now just fall back
-            print("Topic generation failed:", e)
+            print("Gemini topic generation failed:", e)
             return random.choice(self._fallback_prompts)
