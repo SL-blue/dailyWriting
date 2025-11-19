@@ -2,6 +2,7 @@
 
 from datetime import datetime
 
+from PyQt6.QtGui import QTextBlockFormat, QTextCursor
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget,
@@ -82,11 +83,14 @@ class SessionView(QWidget):
 
         layout.addWidget(self.prompt_container)
 
-        # Writing editor
         self.editor = QTextEdit()
         self.editor.setPlaceholderText("START WRITING HERE...")
         self.editor.setObjectName("WritingEditor")
-        layout.addWidget(self.editor, 1)  # stretch = 1 to fill space
+        layout.addWidget(self.editor, 1)
+
+        # apply 1.5 line spacing
+        self._apply_line_spacing()
+
 
         # Bottom row: timer + word count (right aligned)
         bottom_row = QHBoxLayout()
@@ -134,6 +138,7 @@ class SessionView(QWidget):
 
         # reset editor and counters
         self.editor.clear()
+        self._apply_line_spacing()   # keep 1.5 spacing after clear
         self._update_word_count(0)
         self._update_time_label(0)
 
@@ -208,3 +213,17 @@ class SessionView(QWidget):
 
     def _update_word_count(self, count: int):
         self.words_label.setText(f"WORDS: {count}")
+
+    def _apply_line_spacing(self):
+        """Set writing editor line spacing to 1.5x."""
+        cursor = self.editor.textCursor()
+        cursor.select(QTextCursor.SelectionType.Document)
+
+        block_fmt = QTextBlockFormat()
+        # 150% line height, cast enum to int to satisfy the type checker
+        block_fmt.setLineHeight(150, 0)
+
+        cursor.setBlockFormat(block_fmt)
+        cursor.clearSelection()
+        self.editor.setTextCursor(cursor)
+

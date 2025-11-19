@@ -19,6 +19,7 @@ from core.models import WritingSession
 from core.storage import load_sessions_for_date, load_all_sessions
 from core.streak_days import load_completed_days, compute_streaks_from_days
 from core.stats import compute_streaks
+from core.topic_generator import TopicGenerator
 from ui.session_view import SessionView
 from ui.calendar_view import CalendarView
 from ui.session_list_dialog import SessionListDialog
@@ -102,7 +103,7 @@ class MainWindow(QMainWindow):
         main_area.setLayout(main_layout)
 
 
-                # --- Header: title + streak ---
+        # --- Header: title + streak ---
         header_layout = QHBoxLayout()
         header_layout.setSpacing(16)
 
@@ -194,9 +195,10 @@ class MainWindow(QMainWindow):
         self.show_session()
 
     def start_random_topic(self):
-        dummy_topic = "Write about a place you remember vividly."
-        self.session_view.start_new_session(mode="random_topic", topic=dummy_topic)
+        topic = self.topic_generator.generate_topic()
+        self.session_view.start_new_session(mode="random_topic", topic=topic)
         self.show_session()
+
 
     def on_session_title_changed(self, title: str):
         """Keep header title in sync with the writing session title."""
