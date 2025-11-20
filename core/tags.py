@@ -14,7 +14,7 @@ class Tag:
     elements: List[str]
 
 
-# A small initial vocabulary. You can extend it over time.
+# A small initial vocabulary.
 TAG_REGISTRY: Dict[str, Tag] = {
     # ---- Genre / Style ----
     "genre_daily": Tag(

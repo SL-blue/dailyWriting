@@ -18,7 +18,6 @@ class TopicGenerator:
 
     def __init__(self) -> None:
         self.api_key = os.getenv("GOOGLE_API_KEY")
-        # pick a valid model for your project; you can change this
         self.model: str = "gemini-2.5-flash"
 
         self._fallback_prompts = [
@@ -37,11 +36,10 @@ class TopicGenerator:
             self.client = None
 
     def generate_topic(self, tag_ids: Optional[List[str]] = None) -> str:
-        self.last_used_fallback = False    # reset at start
+        self.last_used_fallback = False
 
         user_tag_ids = tag_ids or []
 
-        # ... your hidden tag logic if any ...
         all_tag_ids = user_tag_ids
 
         instruction = build_topic_instruction(all_tag_ids)
