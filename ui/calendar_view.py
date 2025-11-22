@@ -4,7 +4,7 @@ from datetime import date
 from typing import Set
 
 from PyQt6.QtCore import pyqtSignal, QDate
-from PyQt6.QtGui import QTextCharFormat, QBrush
+from PyQt6.QtGui import QTextCharFormat, QBrush, QColor, QFont
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCalendarWidget, QLabel
 
 from core.storage import load_sessions_for_month
@@ -16,11 +16,15 @@ class CalendarView(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
         self.setLayout(layout)
 
         self.label = QLabel("Days with writing are highlighted.")
         self.calendar = QCalendarWidget()
+        self.calendar.setObjectName("WritingCalendar")
+        layout.addWidget(self.calendar)
+
+        self._apply_style()
 
         layout.addWidget(self.label)
         layout.addWidget(self.calendar)
@@ -41,35 +45,48 @@ class CalendarView(QWidget):
         self.dateClicked.emit(d)
 
     def _on_month_changed(self, year: int, month: int) -> None:
-        self.refresh_month(year, month)
+        self.refresh_month()
 
-    def refresh_month(self, year: int | None = None, month: int | None = None) -> None:
-        """
-        Reload sessions for the current (or given) month and highlight those days.
-        """
-        if year is None or month is None:
-            qd = self.calendar.selectedDate()
-            year = qd.year()
-            month = qd.month()
+    def refresh_month(self):
+        cal = self.calendar
 
-        # Reset formats
-        self._clear_highlights()
+        # 1. Reset all formatting
+        cal.setDateTextFormat(QDate(), QTextCharFormat())
 
-        # Load sessions for this month
-        sessions = load_sessions_for_month(year, month)
-        self.completed_dates = {s.session_date for s in sessions}
+        # Extract current month & year
+        qdate = cal.selectedDate()
+        year = qdate.year()
+        month = qdate.month()
 
-        # Apply highlights
-        fmt = QTextCharFormat()
-        fmt.setBackground(QBrush())  # default brush, we’ll set a color via setProperty if needed
+        # ----------------------------------------------------
+        # 2. Highlight today's date
+        # ----------------------------------------------------
+        today = QDate.currentDate()
+        fmt_today = QTextCharFormat()
+        fmt_today.setBackground(QColor("#333333"))
+        fmt_today.setForeground(QColor("#ffffff"))
+        fmt_today.setFontWeight(QFont.Weight.DemiBold)
+        cal.setDateTextFormat(today, fmt_today)
 
-        # Slightly different way: use a light background color via Qt style
-        # But here we simply set bold:
-        fmt.setFontWeight(75)  # QFont.Bold
+        # ----------------------------------------------------
+        # 3. Highlight completed sessions (your streak days)
+        # ----------------------------------------------------
+        from core.streak_days import load_completed_days
+        completed_days = load_completed_days()  # list of date objects
 
-        for d in self.completed_dates:
-            qdate = QDate(d.year, d.month, d.day)
-            self.calendar.setDateTextFormat(qdate, fmt)
+        for d in completed_days:
+            if d.year == year and d.month == month:
+                qd = QDate(d.year, d.month, d.day)
+
+                fmt = QTextCharFormat()
+
+                # Modern highlight style:
+                fmt.setBackground(QColor("#005f46"))      # subtle green glow
+                fmt.setForeground(QColor("#ffffff"))
+                fmt.setFontWeight(QFont.Weight.Bold)
+                fmt.setFontPointSize(11)
+
+                cal.setDateTextFormat(qd, fmt)
 
     def _clear_highlights(self) -> None:
         """Reset all date formats (for the currently visible month)."""
@@ -80,3 +97,34 @@ class CalendarView(QWidget):
         for d in self.completed_dates:
             qdate = QDate(d.year, d.month, d.day)
             self.calendar.setDateTextFormat(qdate, default_fmt)
+
+    def _apply_style(self):
+        """Visual style for the calendar widget."""
+        self.calendar.setStyleSheet("""
+        QCalendarWidget#WritingCalendar {
+            background-color: #111111;
+            color: #ffffff;
+            border: none;
+        }
+        /* grid / day cells */
+        QCalendarWidget#WritingCalendar QAbstractItemView:enabled {
+            background-color: #111111;
+            selection-background-color: #333333;
+            selection-color: #ffffff;
+            outline: none;
+        }
+        /* month navigation bar */
+        QCalendarWidget#WritingCalendar QWidget#qt_calendar_navigationbar {
+            background-color: #111111;
+        }
+        QCalendarWidget#WritingCalendar QToolButton {
+            color: #ffffff;
+            font-weight: 600;
+            background: transparent;
+            border: none;
+        }
+        QCalendarWidget#WritingCalendar QToolButton::menu-indicator {
+            image: none;
+        }
+        """)
+

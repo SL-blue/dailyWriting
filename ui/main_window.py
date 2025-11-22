@@ -221,13 +221,11 @@ class MainWindow(QMainWindow):
         self.show_session()
 
 
-
     def on_session_title_changed(self, title: str):
         """Keep header title in sync with the writing session title."""
         if self.stacked.currentIndex() == self.PAGE_SESSION:
             # if title is empty, SessionView.get_current_title() will fall back
             self.header_title.setText(self.session_view.get_current_title())
-
 
     def on_session_finished(self, session: WritingSession):
         print(f"MainWindow: Session finished with id={session.id}")
@@ -330,14 +328,15 @@ class MainWindow(QMainWindow):
         QLabel#PromptTitle {
             color: #ff3b30;
             font-weight: 700;
+            font-size: 20px;
         }
         QLabel#PromptBody {
-            color: #333333;
-            font-size: 14px;
+            color: #ffffff;
+            font-size: 18px;
         }
         QLabel#PromptTags {
             color: #bbbbbb;
-            font-size: 11px;
+            font-size: 13px;
         }
         QLineEdit#SessionTitle {
             font-size: 24px;      /* bigger title */
@@ -346,7 +345,7 @@ class MainWindow(QMainWindow):
             border: none;
         }
         QTextEdit#WritingEditor {
-            font-size: 16px;      /* bigger body text */
+            font-size: 20px;      /* bigger body text */
         }
         QLabel#TimeLabel {
             font-weight: 600;
