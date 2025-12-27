@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
 
         # ===== LEFT SIDEBAR =====
         sidebar = QWidget()
-        sidebar.setObjectName("Sidebar")  # for styling later
+        sidebar.setObjectName("Sidebar")
         sidebar.setFixedWidth(260)
         sb_layout = QVBoxLayout()
         sb_layout.setContentsMargins(24, 24, 24, 24)
@@ -65,14 +65,14 @@ class MainWindow(QMainWindow):
         # App title
         title_label = QLabel("THE\nDAILY\nWRITER")
         title_label.setObjectName("SidebarTitle")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        title_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)  # align: bitwise operation
         sb_layout.addWidget(title_label)
 
         # Calendar / session list buttons
         calendar_btn = QPushButton("CALENDAR VIEW")
         calendar_btn.setObjectName("NavButton")
         sessions_list_btn = QPushButton("SESSION LIST")
-        sessions_list_btn.setObjectName("NavButton")
+        sessions_list_btn.setObjectName("NavButton")  # Set same style as calendar button(in styling part)
 
         sb_layout.addWidget(calendar_btn)
         sb_layout.addWidget(sessions_list_btn)
@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
         sb_layout.addWidget(self.free_button)
         sb_layout.addWidget(self.random_button)
 
-        sb_layout.addStretch()
+        sb_layout.addStretch()  # anchor content to top without manual spacers or pixel math
 
         # ===== RIGHT MAIN AREA =====
         main_area = QWidget()
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(self.streak_label)
 
         # --- Stacked pages (calendar, session, history) ---
-        self.stacked = QStackedWidget()
+        self.stacked = QStackedWidget()  # QStackedWidget allows showing one page at a time, allowing switching
         self.calendar_view = CalendarView()
         self.session_view = SessionView(self.session_manager)
         self.session_view.titleChanged.connect(self.on_session_title_changed)
@@ -150,7 +150,7 @@ class MainWindow(QMainWindow):
 
         # Put sidebar + main area into root layout
         root_layout.addWidget(sidebar)
-        root_layout.addWidget(main_area, 1)  # stretch = 1
+        root_layout.addWidget(main_area, 1)  # stretch = 1, main_area expand and sidebar stay fixed width
 
         # ----- Connections -----
         self.free_button.clicked.connect(self.start_free_writing)
@@ -200,16 +200,15 @@ class MainWindow(QMainWindow):
         self.show_session()
 
     def start_random_topic(self):
-        from ui.tag_selector_dialog import TagSelectorDialog
 
         dlg = TagSelectorDialog(self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
+        if dlg.exec() != QDialog.DialogCode.Accepted:  # ? What does exec() do here?
             return
 
         tag_ids = dlg.selected_tags()
         topic = self.topic_generator.generate_topic(tag_ids)
 
-        # <-- Here is the right place for QMessageBox.information
+        # Connect to local backup if Gemini fails
         if self.topic_generator.last_used_fallback:
             QMessageBox.information(
                 self,

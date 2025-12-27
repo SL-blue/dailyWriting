@@ -146,6 +146,7 @@ class SessionView(QWidget):
         self._timer.start()
 
     def _on_finish_clicked(self):
+        # If no current session, emit cancelled signal
         if not self._current_session:
             self.sessionCancelled.emit()
             return
