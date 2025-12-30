@@ -1,4 +1,6 @@
-# core/topic_generator.py
+"""
+Core topic generator using Google Gemini via google-genai, with fallback prompts.
+"""
 
 import os
 import random
@@ -14,6 +16,11 @@ from .tags import TAG_REGISTRY
 class TopicGenerator:
     """
     Topic generator using Google Gemini via google-genai.
+    Falls back to predefined prompts if API key is missing or errors occur.
+    Attributes:
+        api_key: The Google API key from environment variable.
+        model: The Gemini model to use.
+        last_used_fallback: Indicates if the last topic was from fallback prompts.
     """
 
     def __init__(self) -> None:
@@ -36,6 +43,14 @@ class TopicGenerator:
             self.client = None
 
     def generate_topic(self, tag_ids: Optional[List[str]] = None) -> str:
+        """
+        Generate a writing topic based on provided tag IDs.
+        If no tag IDs are provided, uses fallback prompts.
+        Args:
+            tag_ids: Optional list of tag IDs to guide topic generation.
+        Returns:
+            A generated topic string.
+        """
         self.last_used_fallback = False
 
         user_tag_ids = tag_ids or []

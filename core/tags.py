@@ -1,4 +1,8 @@
-# core/tags.py
+"""
+The tag definitions used to guide story generation.
+Defines Tag as a dataclass, and a registry of predefined tags.
+Each tag has an ID, label, category, description, and example elements. Example elements are only for reference.
+"""
 
 from dataclasses import dataclass
 from typing import List, Dict

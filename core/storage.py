@@ -1,4 +1,7 @@
-# core/storage.py
+"""
+Storage module for managing WritingSession data.
+Handles saving, loading, and deleting session JSON files.
+"""
 
 import json
 from pathlib import Path
@@ -15,11 +18,23 @@ SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 def get_session_path(sess: WritingSession) -> Path:
     """
     Return the filesystem path of the JSON file for a given WritingSession.
+    Args:
+        sess: WritingSession object
+    Returns:
+        Path to the session's JSON file
     """
     filename = f"{sess.session_date.isoformat()}-{sess.id}.json"
     return SESSIONS_DIR / filename
 
 def session_to_dict(sess: WritingSession) -> dict:
+    """
+    Convert a WritingSession object to a dictionary.
+    
+    Args:
+    sess: WritingSession object of a written session
+    return:
+    dict[Any, Any]: Dictionary representation of the WritingSession, converted from WritingSession object
+    """
     return {
         "id": sess.id,
         "title": sess.title,  # <-- new
@@ -36,6 +51,13 @@ def session_to_dict(sess: WritingSession) -> dict:
 
 
 def dict_to_session(data: dict) -> WritingSession:
+    """
+    Convert a dictionary to a WritingSession object.
+    Args:
+        data: Dictionary representation of a WritingSession
+    Returns:
+        WritingSession object
+    """
     sess_date = date.fromisoformat(data["session_date"])
     # for old JSON files without "title", default to the date string
     title = data.get("title") or sess_date.isoformat()
@@ -57,7 +79,11 @@ def dict_to_session(data: dict) -> WritingSession:
 
 
 def save_session(sess: WritingSession) -> None:
-    """Save session as JSON file: data/sessions/YYYY-MM-DD-<id>.json"""
+    """
+    Save session as JSON file: data/sessions/YYYY-MM-DD-<id>.json
+    Args:
+        sess: WritingSession object to save
+    """
     filename = f"{sess.session_date.isoformat()}-{sess.id}.json"
     path = SESSIONS_DIR / filename
     with path.open("w", encoding="utf-8") as f:
@@ -65,13 +91,24 @@ def save_session(sess: WritingSession) -> None:
 
 
 def delete_session(sess: WritingSession) -> None:
+    """
+    Delete the JSON file for a given WritingSession.
+    Args:
+        sess: WritingSession object to delete
+    """
     path = get_session_path(sess)
     if path.exists():
         path.unlink()
 
 
 def load_sessions_for_date(d: date) -> List[WritingSession]:
-    """Load all sessions for a specific date."""
+    """
+    Load all sessions for a specific date.
+    Args:
+        d: date object representing the date to load sessions for
+    Returns:
+        List of WritingSession objects for the given date
+    """
     prefix = d.isoformat() + "-"
     sessions: List[WritingSession] = []
 
@@ -84,7 +121,14 @@ def load_sessions_for_date(d: date) -> List[WritingSession]:
 
 
 def load_sessions_for_month(year: int, month: int) -> List[WritingSession]:
-    """Load all sessions whose date is in the given month."""
+    """
+    Load all sessions whose date is in the given month.
+    Args:
+        year: Year as integer
+        month: Month as integer (1-12)
+    Returns:
+        List of WritingSession objects for the given month
+    """
     sessions: List[WritingSession] = []
     for path in SESSIONS_DIR.glob("*.json"):
         with path.open("r", encoding="utf-8") as f:
@@ -96,7 +140,11 @@ def load_sessions_for_month(year: int, month: int) -> List[WritingSession]:
 
 
 def load_all_sessions() -> List[WritingSession]:
-    """Load all sessions stored in data/sessions."""
+    """
+    Load all sessions stored in data/sessions.
+    Returns:
+        List of all WritingSession objects
+    """
     sessions: List[WritingSession] = []
 
     for path in SESSIONS_DIR.glob("*.json"):

@@ -1,4 +1,6 @@
-# core/prompt_builder.py
+"""
+The prompt builder for generating writing topics based on selected tags.
+"""
 
 import random
 from collections import defaultdict
@@ -12,6 +14,10 @@ def build_topic_instruction(selected_tag_ids: List[str]) -> str:
     Given a list of tag IDs, build a natural-language instruction for the LLM
     to generate a single story-like sentence or short paragraph that implies a story.
     The 'elements' inside tags are used only as invisible examples for the LLM.
+    Args:
+        selected_tag_ids: List of selected tag IDs.
+    Returns:
+        A string containing the prompt instruction for the LLM.
     """
 
     # group tags by category (genre, mood, place, time, event, item, skill, form, ...)
@@ -25,14 +31,24 @@ def build_topic_instruction(selected_tag_ids: List[str]) -> str:
     genre_labels = [t.label for t in tags_by_cat.get("genre", [])]
     form_tags = tags_by_cat.get("form", [])
 
-    # Helper: pick some *example* elements per category (hidden from user)
     def pick_example_elements(cat: str, max_count: int = 3) -> List[str]:
+        """
+        Pick example elements from tags in a given category.
+        These are used as invisible inspirations for the LLM.(Invisible to user)
+        
+        Args:
+        cat: A string of description of the category
+        max_count: An int of maximum number of examples to pick
+        Return:
+        A List[str] of example elements from the given category
+        """
         candidates: List[str] = []
         for t in tags_by_cat.get(cat, []):
             candidates.extend(t.elements)
         random.shuffle(candidates)
         return candidates[:max_count]
 
+    # Pick example elements for various dimensions
     mood_examples   = pick_example_elements("mood", 3)
     place_examples  = pick_example_elements("place", 3)
     time_examples   = pick_example_elements("time", 3)

@@ -1,4 +1,6 @@
-# core/stats.py
+"""
+Compute writing streaks from writing sessions and return stats.
+"""
 
 from datetime import date, timedelta
 from typing import Iterable, Set
@@ -10,6 +12,11 @@ def _completed_days_from_sessions(sessions: Iterable[WritingSession]) -> Set[dat
     """
     Return the set of dates that have at least one completed session.
     For now: every saved session counts, no min chars/minutes.
+
+    Args:
+        sessions: Iterable of WritingSession objects
+    Returns:
+        Set of dates with at least one session
     """
     return {s.session_date for s in sessions}
 
@@ -20,6 +27,10 @@ def compute_streaks(sessions: Iterable[WritingSession]):
       - current_streak: number of consecutive days up to today with writing
       - longest_streak: longest such run ever
       - total_days: total distinct days with sessions
+    Args:
+        sessions: Iterable of WritingSession objects
+    Returns:
+        Tuple of (current_streak, longest_streak, total_days)
     """
 
     completed_days = sorted(_completed_days_from_sessions(sessions))

@@ -1,4 +1,7 @@
-# core/streak_days.py
+"""
+Functions for managing writing streaks.
+load, save, and update streak days, and compute streak statistics.
+"""
 
 import json
 from pathlib import Path
@@ -11,7 +14,12 @@ STREAK_FILE = DATA_DIR / "streak_days.json"
 
 
 def load_completed_days() -> Set[date]:
-    """Load the set of days that count as completed for streak."""
+    """
+    Load the set of days that count as completed for streak.
+    Returns an empty set if no data exists.
+    
+    Returns: Set of completed dates.
+    """
     if not STREAK_FILE.exists():
         return set()
     try:
@@ -23,7 +31,11 @@ def load_completed_days() -> Set[date]:
 
 
 def save_completed_days(days: Set[date]) -> None:
-    """Save the set of completed streak days."""
+    """
+    Save the set of completed streak days.
+    Args:
+        days: Set of dates to save.
+    """
     raw = sorted(d.isoformat() for d in days)
     STREAK_FILE.parent.mkdir(parents=True, exist_ok=True)
     with STREAK_FILE.open("w", encoding="utf-8") as f:
@@ -31,7 +43,11 @@ def save_completed_days(days: Set[date]) -> None:
 
 
 def mark_day_completed(d: date) -> None:
-    """Mark this date as a completed writing day."""
+    """
+    Mark this date as a completed writing day.
+    Args:
+        d: The date to mark as completed.
+    """
     days = load_completed_days()
     if d not in days:
         days.add(d)
@@ -45,6 +61,8 @@ def maybe_unmark_today_if_empty(d: date) -> None:
       - now there are NO sessions remaining today.
 
     Deletions on old days do NOT remove streak history.
+    Args:
+        d: The date of the deleted session.
     """
     today = date.today()
 
@@ -64,7 +82,12 @@ def maybe_unmark_today_if_empty(d: date) -> None:
 
 
 def compute_streaks_from_days(days: Set[date]):
-    """Compute streak values from a set of completed streak days."""
+    """
+    Compute streak values from a set of completed streak days.
+    Args:
+        days: Set of completed dates.
+    Returns: (current_streak, longest_streak, total_days)
+    """
     if not days:
         return 0, 0, 0
 

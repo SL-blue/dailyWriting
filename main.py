@@ -15,7 +15,7 @@ def main() -> None:
     window = MainWindow()
     window.show()
 
-    # Start the event loop
+    # Start the event loop after the event loop ends(exit Python)
     sys.exit(app.exec())
 
 
