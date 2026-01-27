@@ -11,6 +11,10 @@ from core.storage import load_sessions_for_month
 
 
 class CalendarView(QWidget):
+    """
+    A calendar widget that highlights days with completed writing sessions.
+    Emits `dateClicked` signal when a date is clicked.
+    """
     dateClicked = pyqtSignal(date)
     
     def __init__(self, parent=None):
