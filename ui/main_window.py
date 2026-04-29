@@ -123,6 +123,12 @@ class MainWindow(QMainWindow):
 
         sb_layout.addStretch()  # anchor content to top without manual spacers or pixel math
 
+        # Settings button at bottom of sidebar
+        self.settings_button = QPushButton("⚙  SETTINGS")
+        self.settings_button.setObjectName("SettingsButton")
+        self.settings_button.clicked.connect(self._show_settings)
+        sb_layout.addWidget(self.settings_button)
+
         # ===== RIGHT MAIN AREA =====
         main_area = QWidget()
         main_layout = QVBoxLayout()
@@ -466,6 +472,20 @@ class MainWindow(QMainWindow):
             height: 1px;
             background-color: #333333;
             margin: 4px 0;
+        }
+        QPushButton#SettingsButton {
+            background-color: #2a2a2a;
+            color: #888888;
+            font-weight: 500;
+            padding: 10px;
+            border: 1px solid #333333;
+            border-radius: 4px;
+            text-align: left;
+        }
+        QPushButton#SettingsButton:hover {
+            background-color: #333333;
+            color: #ffffff;
+            border-color: #444444;
         }
         """)
 

@@ -26,8 +26,8 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 class AISettings:
     """Settings for AI topic generation."""
     provider: str = "gemini"  # "gemini" or "claude"
-    gemini_model: str = "gemini-2.5-pro"
-    claude_model: str = "claude-sonnet-4-6-20250514"
+    gemini_model: str = "gemini-2.5-flash"
+    claude_model: str = "claude-sonnet-4-5"
     retry_count: int = 3
     # API keys are read from environment variables:
     # GOOGLE_API_KEY for Gemini, ANTHROPIC_API_KEY for Claude

@@ -5,6 +5,24 @@ All notable changes to DailyWriting will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-04-29
+
+### Added
+- **Dual AI Provider Support**: Choose between Google Gemini and Anthropic Claude for writing prompts
+- **Settings Button**: Quick access to settings via ⚙ SETTINGS button in sidebar
+- **Automatic Provider Fallback**: If primary AI provider fails, automatically tries the other
+
+### Changed
+- Default Gemini model updated to `gemini-2.5-flash` (lower quota usage)
+- Default Claude model set to `claude-sonnet-4-5`
+- Improved type safety in topic generator with proper None checks
+
+### Fixed
+- Pylance type errors in `topic_generator.py`
+- Python 3.9 compatibility for type hints in `exceptions.py`
+
+---
+
 ## [1.0.0] - 2025-04-28
 
 ### Added

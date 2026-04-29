@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DailyWriting is a production-ready macOS desktop application for daily writing practice. Built with Python 3.13 and PyQt6, it features AI-powered topic generation via Google Gemini, writing streak tracking, comprehensive statistics, search/filter, export/backup, and session management.
+DailyWriting is a production-ready macOS desktop application for daily writing practice. Built with Python 3.9+ and PyQt6, it features AI-powered topic generation via Google Gemini or Anthropic Claude (with automatic fallback), writing streak tracking, comprehensive statistics, search/filter, export/backup, and session management.
 
 ## Running the Application
 
@@ -65,7 +65,7 @@ Business logic with no UI dependencies:
 | `export.py` | Export to Markdown, TXT, JSON, HTML |
 | `backup.py` | Backup/restore with rotation policy |
 | `config.py` | Settings management (`~/.dailywriting/config.json`) |
-| `topic_generator.py` | Google Gemini API integration with fallback |
+| `topic_generator.py` | Dual AI provider support (Gemini/Claude) with automatic fallback |
 | `prompt_builder.py` | LLM instruction construction from tags |
 | `tags.py` | Tag registry (genre, mood, place, time, event, item, skill, form) |
 | `streak_days.py` | Consecutive writing day tracking |
@@ -122,8 +122,8 @@ PyQt6 widgets and views:
 {
   "ai": {
     "provider": "gemini",
-    "gemini_model": "gemini-2.5-pro",
-    "claude_model": "claude-sonnet-4-20250514",
+    "gemini_model": "gemini-2.5-flash",
+    "claude_model": "claude-sonnet-4-5",
     "retry_count": 3
   },
   "writing": {"default_mode": "free", "autosave_interval": 30, "daily_word_goal": 500},
@@ -141,7 +141,7 @@ PyQt6 widgets and views:
 ## Key Implementation Notes
 
 - **CJK Support**: `utils.mixed_word_count()` handles mixed CJK/English using Unicode ranges
-- **AI Fallback**: TopicGenerator retries on 503 errors, falls back to local prompts
+- **AI Fallback**: TopicGenerator supports dual providers (Gemini/Claude), retries on errors, falls back between providers, then to local prompts
 - **Tag System**: Tags inspire prompt generation without appearing explicitly
 - **Auto-Recovery**: Abandoned drafts are detected on startup and offered for recovery
 - **Statistics**: Full stats including streaks, averages, productivity insights, goal tracking

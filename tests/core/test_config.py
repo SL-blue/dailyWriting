@@ -23,8 +23,8 @@ class TestAppSettings:
 
         # AI defaults
         assert settings.ai.provider == "gemini"
-        assert settings.ai.gemini_model == "gemini-2.5-pro"
-        assert settings.ai.claude_model == "claude-sonnet-4-6-20250514"
+        assert settings.ai.gemini_model == "gemini-2.5-flash"
+        assert settings.ai.claude_model == "claude-sonnet-4-5"
         assert settings.ai.retry_count == 3
 
         # Writing defaults
@@ -71,7 +71,7 @@ class TestAppSettings:
         # Should return defaults
         settings = AppSettings.load()
         assert settings.ai.provider == "gemini"
-        assert settings.ai.gemini_model == "gemini-2.5-pro"
+        assert settings.ai.gemini_model == "gemini-2.5-flash"
 
     def test_load_invalid_json(self, tmp_path, monkeypatch):
         # Create invalid JSON file
@@ -84,7 +84,7 @@ class TestAppSettings:
         # Should return defaults
         settings = AppSettings.load()
         assert settings.ai.provider == "gemini"
-        assert settings.ai.gemini_model == "gemini-2.5-pro"
+        assert settings.ai.gemini_model == "gemini-2.5-flash"
 
     def test_reset_to_defaults(self):
         settings = AppSettings()
@@ -110,5 +110,5 @@ class TestAppSettings:
         assert settings.writing.daily_word_goal == 750
         # Other settings should be defaults
         assert settings.ai.provider == "gemini"
-        assert settings.ai.gemini_model == "gemini-2.5-pro"
+        assert settings.ai.gemini_model == "gemini-2.5-flash"
         assert settings.appearance.font_size == 20

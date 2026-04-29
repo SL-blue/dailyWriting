@@ -2,15 +2,19 @@
 Core topic generator supporting Google Gemini and Anthropic Claude, with fallback prompts.
 """
 
+from __future__ import annotations
+
 import os
 import random
 import time
-from typing import List, Optional
+from typing import List, Optional, Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from google.genai import Client as GeminiClient
+    from anthropic import Anthropic as AnthropicClient
 
 from .prompt_builder import build_topic_instruction
-from .tags import TAG_REGISTRY
 from .logging_config import get_logger
-from .exceptions import TopicGenerationError
 
 logger = get_logger("topic_generator")
 
@@ -30,8 +34,8 @@ class TopicGenerator:
 
     def __init__(self) -> None:
         self.provider: str = "gemini"
-        self.gemini_model: str = "gemini-2.5-pro"
-        self.claude_model: str = "claude-sonnet-4-6-20250514"
+        self.gemini_model: str = "gemini-2.5-flash"
+        self.claude_model: str = "claude-sonnet-4-5"
 
         self._fallback_prompts = [
             "Write about a moment that quietly changed you.",
@@ -43,8 +47,8 @@ class TopicGenerator:
         self.last_error: Optional[str] = None
 
         # Initialize API clients
-        self._gemini_client = None
-        self._claude_client = None
+        self._gemini_client: Optional[GeminiClient] = None
+        self._claude_client: Optional[AnthropicClient] = None
 
         # Check for Gemini API key
         self._gemini_api_key = os.getenv("GOOGLE_API_KEY")
@@ -125,6 +129,9 @@ class TopicGenerator:
 
     def _generate_with_gemini(self, instruction: str) -> str:
         """Generate topic using Gemini API."""
+        if self._gemini_client is None:
+            return self._return_fallback()
+
         for attempt in range(3):
             try:
                 response = self._gemini_client.models.generate_content(
@@ -165,6 +172,9 @@ class TopicGenerator:
 
     def _generate_with_claude(self, instruction: str) -> str:
         """Generate topic using Claude API."""
+        if self._claude_client is None:
+            return self._return_fallback()
+
         for attempt in range(3):
             try:
                 message = self._claude_client.messages.create(
@@ -175,11 +185,11 @@ class TopicGenerator:
                     ]
                 )
 
-                # Extract text from response
+                # Extract text from response (only TextBlock has .text)
                 text = ""
                 for block in message.content:
-                    if hasattr(block, "text"):
-                        text += block.text
+                    if block.type == "text":
+                        text += block.text  # type: ignore[union-attr]
 
                 text = text.strip()
 

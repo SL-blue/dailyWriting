@@ -206,3 +206,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# DailyWriting user data
+data/sessions/
+data/streak_days.json

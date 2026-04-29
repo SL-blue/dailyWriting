@@ -160,7 +160,7 @@ class SettingsDialog(QDialog):
         self.claude_group.setLayout(claude_layout)
 
         self.claude_model_combo = QComboBox()
-        self.claude_model_combo.addItem("Claude Sonnet 4.6", "claude-sonnet-4-6-20250514")
+        self.claude_model_combo.addItem("Claude Sonnet 4.5", "claude-sonnet-4-5")
         self.claude_model_combo.addItem("Claude Haiku 3.5", "claude-3-5-haiku-20241022")
         claude_layout.addRow("Model:", self.claude_model_combo)
 

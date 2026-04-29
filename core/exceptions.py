@@ -2,6 +2,8 @@
 Custom exceptions for DailyWriting application.
 """
 
+from __future__ import annotations
+
 
 class DailyWritingError(Exception):
     """Base exception for all DailyWriting errors."""
