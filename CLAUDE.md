@@ -4,50 +4,99 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DailyWriting is a macOS desktop application for daily writing practice. Built with Python 3.13 and PyQt6, it features AI-powered topic generation via Google Gemini, writing streak tracking, and session management.
+DailyWriting is a production-ready macOS desktop application for daily writing practice. Built with Python 3.13 and PyQt6, it features AI-powered topic generation via Google Gemini, writing streak tracking, comprehensive statistics, search/filter, export/backup, and session management.
 
 ## Running the Application
 
 ```bash
+# From source
 python main.py
+python main.py --debug  # Enable debug logging
+
+# Build standalone app
+./scripts/build_app.sh
+open dist/DailyWriting.app
 ```
 
-Requires `GOOGLE_API_KEY` environment variable for AI topic generation. Falls back to hardcoded prompts if missing.
+Requires `GEMINI_API_KEY` environment variable for AI topic generation. Falls back to hardcoded prompts if missing.
+
+## Development
+
+```bash
+# Setup
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+
+# Run tests (115 tests)
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=core --cov-report=term-missing
+
+# Run a single test file
+pytest tests/core/test_statistics.py -v
+
+# Lint
+ruff check core/ ui/
+```
+
+Logs are written to `~/.dailywriting/logs/dailywriting.log`.
 
 ## Architecture
 
 The codebase follows a layered MVC-style architecture:
 
 ### Core Layer (`core/`)
-- **models.py** - `WritingSession` dataclass containing session metadata, content, and metrics
-- **session_manager.py** - Manages active session lifecycle (start → update → finish)
-- **storage.py** - JSON persistence for sessions (`data/sessions/`) and streak tracking
-- **topic_generator.py** - Google Gemini API integration for AI-generated writing prompts
-- **prompt_builder.py** - Constructs LLM instructions from selected tags
-- **tags.py** - Tag registry organized by category (genre, mood, place, time, event, item, skill, form)
-- **streak_days.py** - Tracks consecutive writing days
-- **stats.py** - Calculates current streak, longest streak, total days
-- **utils.py** - Mixed CJK/English word counting
+Business logic with no UI dependencies:
+
+| Module | Purpose |
+|--------|---------|
+| `models.py` | `WritingSession` dataclass with metadata, content, metrics |
+| `session_manager.py` | Session lifecycle (start → update → finish), auto-save drafts |
+| `storage.py` | JSON persistence for sessions in `data/sessions/` |
+| `statistics.py` | Comprehensive stats calculations (streaks, averages, trends, goals) |
+| `search.py` | Full-text search with filters (date, mode, word count) |
+| `export.py` | Export to Markdown, TXT, JSON, HTML |
+| `backup.py` | Backup/restore with rotation policy |
+| `config.py` | Settings management (`~/.dailywriting/config.json`) |
+| `topic_generator.py` | Google Gemini API integration with fallback |
+| `prompt_builder.py` | LLM instruction construction from tags |
+| `tags.py` | Tag registry (genre, mood, place, time, event, item, skill, form) |
+| `streak_days.py` | Consecutive writing day tracking |
+| `stats.py` | Legacy streak calculations |
+| `utils.py` | Mixed CJK/English word counting |
+| `exceptions.py` | Custom exception hierarchy |
+| `logging_config.py` | Centralized logging with rotation |
 
 ### UI Layer (`ui/`)
-- **main_window.py** - Application container with sidebar navigation and stacked views
-- **session_view.py** - Active writing editor with timer, title, word count
-- **calendar_view.py** - Calendar widget highlighting writing days
-- **history_view.py** - Scrollable list of past sessions
-- **tag_selector_dialog.py** - Modal for selecting writing prompt tags
-- **session_list_dialog.py** - Dialog listing sessions for a specific date
-- **session_detail_dialog.py** - Modal showing full session details
+PyQt6 widgets and views:
+
+| Module | Purpose |
+|--------|---------|
+| `main_window.py` | Main container with sidebar, menu bar, stacked views |
+| `session_view.py` | Writing editor with timer, title, word count, auto-save |
+| `calendar_view.py` | Monthly calendar highlighting writing days |
+| `history_view.py` | Session list with search, filter, sort |
+| `stats_view.py` | Statistics dashboard with metric cards |
+| `settings_dialog.py` | Tabbed preferences dialog |
+| `about_dialog.py` | App info dialog |
+| `shortcuts_dialog.py` | Keyboard shortcuts reference |
+| `tag_selector_dialog.py` | Modal for selecting prompt tags |
+| `session_list_dialog.py` | Sessions for a specific date |
+| `session_detail_dialog.py` | Full session details with export |
 
 ### Data Flow
 1. User starts session → SessionManager creates WritingSession
-2. User writes → SessionView updates content in real-time
+2. User writes → SessionView updates content, auto-saves drafts every 30s
 3. User finishes → SessionManager saves to Storage (JSON files)
-4. StreakDays tracks completion, Stats computes streaks
-5. CalendarView displays highlighted writing days
+4. Statistics calculates metrics, StreakDays tracks completion
+5. Views refresh to display updated data
 
 ## Data Storage
 
-Sessions stored as JSON in `data/sessions/` with structure:
+### Sessions (`data/sessions/YYYY-MM-DD/`)
 ```json
 {
   "id": "uuid",
@@ -58,16 +107,53 @@ Sessions stored as JSON in `data/sessions/` with structure:
   "content": "full writing content",
   "start_time": "ISO timestamp",
   "end_time": "ISO timestamp or null",
-  "duration_seconds": 12,
-  "char_count": 12,
-  "word_count": 2
+  "duration_seconds": 600,
+  "char_count": 500,
+  "word_count": 100
 }
 ```
 
-Streak days tracked in `data/streak_days.json` as a list of date strings.
+### Settings (`~/.dailywriting/config.json`)
+```json
+{
+  "ai": {"model": "gemini-2.0-flash", "api_key": null},
+  "writing": {"default_mode": "free", "autosave_interval": 30, "daily_word_goal": 500},
+  "export": {"default_format": "markdown", "include_metadata": true},
+  "appearance": {"font_size": 18, "line_spacing": 1.5}
+}
+```
+
+### Other Storage
+- `data/streak_days.json` - List of completion dates
+- `~/.dailywriting/drafts/` - Auto-saved session drafts
+- `~/.dailywriting/backups/` - Backup archives
+- `~/.dailywriting/logs/` - Application logs
 
 ## Key Implementation Notes
 
-- **CJK Support**: `utils.mixed_word_count()` handles mixed CJK/English text using Unicode range detection (0x4E00-0x9FFF)
-- **AI Fallback**: TopicGenerator includes retry logic for 503 errors and fallback prompts when API unavailable
-- **Tag System**: Tags serve as invisible inspirations for prompt generation, not explicit requirements in the output
+- **CJK Support**: `utils.mixed_word_count()` handles mixed CJK/English using Unicode ranges
+- **AI Fallback**: TopicGenerator retries on 503 errors, falls back to local prompts
+- **Tag System**: Tags inspire prompt generation without appearing explicitly
+- **Auto-Recovery**: Abandoned drafts are detected on startup and offered for recovery
+- **Statistics**: Full stats including streaks, averages, productivity insights, goal tracking
+- **Search**: Real-time filtering with query, mode, date range, word count filters
+
+## Testing
+
+Tests are organized by layer:
+- `tests/core/` - Business logic tests (no Qt required)
+- `tests/conftest.py` - Shared fixtures
+
+Current coverage: 115 tests passing.
+
+## Building
+
+```bash
+# Create standalone macOS app
+./scripts/build_app.sh
+
+# Create custom icon
+./scripts/create_icon.sh path/to/1024x1024.png
+```
+
+Output: `dist/DailyWriting.app` (~87MB standalone)

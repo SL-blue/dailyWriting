@@ -18,6 +18,10 @@ from PyQt6.QtWidgets import (
 from core.session_manager import SessionManager
 from core.models import WritingSession
 from core.utils import mixed_word_count
+from core.logging_config import get_logger
+from core.config import get_settings, AppSettings
+
+logger = get_logger("session_view")
 
 
 class SessionView(QWidget):
@@ -29,11 +33,20 @@ class SessionView(QWidget):
         super().__init__(parent)
         self.session_manager = session_manager
         self._current_session: WritingSession | None = None
+        self._settings = get_settings()
+
+        # Timer for updating elapsed time display
         self._timer = QTimer(self)
         self._timer.setInterval(1000)  # 1 second
         self._timer.timeout.connect(self._on_tick)
 
+        # Auto-save timer for crash recovery
+        self._autosave_timer = QTimer(self)
+        self._update_autosave_interval()
+        self._autosave_timer.timeout.connect(self._on_autosave)
+
         self._build_ui()
+        self._apply_appearance_settings()
 
     # ---------- UI layout ----------
 
@@ -142,8 +155,10 @@ class SessionView(QWidget):
         self._update_word_count(0)
         self._update_time_label(0)
 
-        # start timer
+        # start timers
         self._timer.start()
+        self._autosave_timer.start()
+        logger.info("Session view started for session %s", sess.id)
 
     def _on_finish_clicked(self):
         # If no current session, emit cancelled signal
@@ -157,6 +172,7 @@ class SessionView(QWidget):
 
         sess = self.session_manager.finish_session()
         self._timer.stop()
+        self._autosave_timer.stop()
         self._current_session = None
 
         if sess is not None:
@@ -173,6 +189,51 @@ class SessionView(QWidget):
         # compute elapsed from session start
         elapsed = int((datetime.now() - self._current_session.start_time).total_seconds())
         self._update_time_label(elapsed)
+
+    def _on_autosave(self):
+        """Auto-save the current session as a draft."""
+        if not self._current_session:
+            return
+        self._push_content_to_manager()
+        self._push_title_to_manager()
+        if self.session_manager.save_draft():
+            logger.debug("Auto-saved draft: %d words", self._current_session.word_count)
+
+    def recover_session(self, session: WritingSession):
+        """
+        Recover a session from an abandoned draft.
+
+        Args:
+            session: The WritingSession to recover.
+        """
+        self._current_session = session
+        self.session_manager.current_session = session
+
+        # Restore UI state
+        self.title_edit.setText(session.title)
+
+        if session.mode == "random_topic" and session.topic:
+            self.prompt_container.show()
+            self.prompt_body_label.setText(session.topic)
+            self.prompt_title_label.show()
+        else:
+            self.prompt_container.hide()
+            self.prompt_body_label.clear()
+
+        # Restore content
+        self.editor.setPlainText(session.content)
+        self._apply_line_spacing()
+        self._update_word_count(session.word_count)
+
+        # Calculate elapsed time from original start
+        elapsed = int((datetime.now() - session.start_time).total_seconds())
+        self._update_time_label(elapsed)
+
+        # Start timers
+        self._timer.start()
+        self._autosave_timer.start()
+
+        logger.info("Recovered session %s with %d words", session.id, session.word_count)
 
     def _on_text_changed(self):
         text = self.editor.toPlainText()
@@ -216,15 +277,55 @@ class SessionView(QWidget):
         self.words_label.setText(f"WORDS: {count}")
 
     def _apply_line_spacing(self):
-        """Set writing editor line spacing to 1.5x."""
+        """Set writing editor line spacing based on settings."""
         cursor = self.editor.textCursor()
         cursor.select(QTextCursor.SelectionType.Document)
 
         block_fmt = QTextBlockFormat()
-        # 150% line height, cast enum to int to satisfy the type checker
-        block_fmt.setLineHeight(150, 0)
+        # Line height as percentage (e.g., 1.5 -> 150%)
+        line_height_percent = int(self._settings.appearance.line_spacing * 100)
+        block_fmt.setLineHeight(line_height_percent, 0)
 
         cursor.setBlockFormat(block_fmt)
         cursor.clearSelection()
         self.editor.setTextCursor(cursor)
+
+    def _update_autosave_interval(self):
+        """Update autosave timer interval from settings."""
+        interval_ms = self._settings.writing.autosave_interval_seconds * 1000
+        self._autosave_timer.setInterval(interval_ms)
+
+    def _apply_appearance_settings(self):
+        """Apply appearance settings to the editor."""
+        appearance = self._settings.appearance
+
+        # Build font style
+        font_family = appearance.editor_font_family or "system-ui"
+        font_size = appearance.font_size
+
+        self.editor.setStyleSheet(f"""
+            QTextEdit {{
+                font-family: {font_family};
+                font-size: {font_size}px;
+                background-color: #1a1a1a;
+                color: #ffffff;
+                border: none;
+                padding: 8px;
+            }}
+        """)
+
+        # Apply line spacing
+        self._apply_line_spacing()
+
+    def apply_settings(self, settings: AppSettings):
+        """
+        Apply new settings to the session view.
+
+        Args:
+            settings: The updated AppSettings instance.
+        """
+        self._settings = settings
+        self._update_autosave_interval()
+        self._apply_appearance_settings()
+        logger.info("Session view settings applied")
 

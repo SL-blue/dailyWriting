@@ -1,0 +1,9 @@
+# Core dependencies
+PyQt6>=6.10.0
+google-genai>=1.51.0
+
+# Development dependencies (install with: pip install -r requirements-dev.txt)
+# pytest>=8.0.0
+# pytest-qt>=4.4.0
+# pytest-cov>=5.0.0
+# ruff>=0.4.0

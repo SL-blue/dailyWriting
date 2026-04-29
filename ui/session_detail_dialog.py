@@ -1,6 +1,7 @@
 # ui/session_detail_dialog.py
 
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 from PyQt6.QtWidgets import (
@@ -11,10 +12,18 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QDialogButtonBox,
     QWidget,
+    QPushButton,
+    QFileDialog,
+    QMessageBox,
 )
 from PyQt6.QtCore import Qt
 
 from core.models import WritingSession
+from core.export import export_session, get_export_extension
+from core.config import get_settings
+from core.logging_config import get_logger
+
+logger = get_logger("session_detail_dialog")
 
 
 def _format_time(dt: Optional[datetime]) -> str:
@@ -100,11 +109,92 @@ class SessionDetailDialog(QDialog):
         self.editor.setPlainText(session.content)
         layout.addWidget(self.editor)
 
-        # --- Buttons: Close ---
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        # --- Buttons: Export + Close ---
+        button_layout = QHBoxLayout()
+
+        self.export_button = QPushButton("Export...")
+        self.export_button.clicked.connect(self._on_export)
+        button_layout.addWidget(self.export_button)
+
+        button_layout.addStretch()
+
+        close_button = QPushButton("Close")
+        close_button.clicked.connect(self.reject)
+        button_layout.addWidget(close_button)
+
+        layout.addLayout(button_layout)
 
         # Basic alignment / style hooks
         for lbl in (date_label, mode_label, topic_label, duration_label, time_label, counts_label):
             lbl.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+    def _on_export(self):
+        """Handle export button click."""
+        settings = get_settings()
+        default_format = settings.export.default_format
+        include_metadata = settings.export.include_metadata
+
+        # Build filter string for file dialog
+        filters = {
+            "markdown": "Markdown Files (*.md)",
+            "txt": "Text Files (*.txt)",
+            "json": "JSON Files (*.json)",
+            "html": "HTML Files (*.html)",
+        }
+
+        # Put default format first
+        filter_list = [filters[default_format]]
+        for fmt, filter_str in filters.items():
+            if fmt != default_format:
+                filter_list.append(filter_str)
+        filter_string = ";;".join(filter_list)
+
+        # Generate default filename
+        safe_title = "".join(c for c in self.session.title if c.isalnum() or c in " -_").strip()
+        safe_title = safe_title[:50] or "session"
+        default_name = f"{self.session.session_date.isoformat()}_{safe_title}{get_export_extension(default_format)}"
+
+        # Get last export path or use home directory
+        start_dir = settings.export.last_export_path or str(Path.home())
+        start_path = str(Path(start_dir) / default_name)
+
+        file_path, selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Session",
+            start_path,
+            filter_string
+        )
+
+        if not file_path:
+            return
+
+        # Determine format from selected filter
+        format_map = {v: k for k, v in filters.items()}
+        export_format = format_map.get(selected_filter, default_format)
+
+        try:
+            export_session(
+                self.session,
+                Path(file_path),
+                format=export_format,
+                include_metadata=include_metadata
+            )
+
+            # Save last export directory
+            settings.export.last_export_path = str(Path(file_path).parent)
+            settings.save()
+
+            QMessageBox.information(
+                self,
+                "Export Successful",
+                f"Session exported to:\n{file_path}"
+            )
+            logger.info("Session exported: %s", file_path)
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Export Failed",
+                f"Failed to export session:\n{e}"
+            )
+            logger.error("Export failed: %s", e)

@@ -9,6 +9,10 @@ from datetime import date, datetime
 from typing import List
 
 from .models import WritingSession
+from .logging_config import get_logger
+from .exceptions import StorageError, SessionNotFoundError
+
+logger = get_logger("storage")
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 SESSIONS_DIR = DATA_DIR / "sessions"
@@ -83,11 +87,22 @@ def save_session(sess: WritingSession) -> None:
     Save session as JSON file: data/sessions/YYYY-MM-DD-<id>.json
     Args:
         sess: WritingSession object to save
+    Raises:
+        StorageError: If the session cannot be saved
     """
     filename = f"{sess.session_date.isoformat()}-{sess.id}.json"
     path = SESSIONS_DIR / filename
-    with path.open("w", encoding="utf-8") as f:
-        json.dump(session_to_dict(sess), f, ensure_ascii=False, indent=2)
+    try:
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(session_to_dict(sess), f, ensure_ascii=False, indent=2)
+        logger.info("Session saved: %s (%d words)", sess.id, sess.word_count)
+    except OSError as e:
+        logger.error("Failed to save session %s: %s", sess.id, e)
+        raise StorageError(
+            f"Failed to save session: {e}",
+            path=str(path),
+            operation="save"
+        ) from e
 
 
 def delete_session(sess: WritingSession) -> None:
@@ -95,10 +110,23 @@ def delete_session(sess: WritingSession) -> None:
     Delete the JSON file for a given WritingSession.
     Args:
         sess: WritingSession object to delete
+    Raises:
+        StorageError: If the session file cannot be deleted
     """
     path = get_session_path(sess)
     if path.exists():
-        path.unlink()
+        try:
+            path.unlink()
+            logger.info("Session deleted: %s", sess.id)
+        except OSError as e:
+            logger.error("Failed to delete session %s: %s", sess.id, e)
+            raise StorageError(
+                f"Failed to delete session: {e}",
+                path=str(path),
+                operation="delete"
+            ) from e
+    else:
+        logger.debug("Session file not found for deletion: %s", sess.id)
 
 
 def load_sessions_for_date(d: date) -> List[WritingSession]:
@@ -113,10 +141,15 @@ def load_sessions_for_date(d: date) -> List[WritingSession]:
     sessions: List[WritingSession] = []
 
     for path in SESSIONS_DIR.glob(f"{prefix}*.json"):
-        with path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
-            sessions.append(dict_to_session(data))
+        try:
+            with path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+                sessions.append(dict_to_session(data))
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning("Skipping corrupt session file %s: %s", path.name, e)
+            continue
 
+    logger.debug("Loaded %d sessions for %s", len(sessions), d.isoformat())
     return sessions
 
 
@@ -146,14 +179,21 @@ def load_all_sessions() -> List[WritingSession]:
         List of all WritingSession objects
     """
     sessions: List[WritingSession] = []
+    skipped = 0
 
     for path in SESSIONS_DIR.glob("*.json"):
         try:
             with path.open("r", encoding="utf-8") as f:
                 data = json.load(f)
                 sessions.append(dict_to_session(data))
-        except Exception:
-            # optionally log/print, but ignore broken files for now
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning("Skipping corrupt session file %s: %s", path.name, e)
+            skipped += 1
+            continue
+        except OSError as e:
+            logger.error("Failed to read session file %s: %s", path.name, e)
+            skipped += 1
             continue
 
+    logger.debug("Loaded %d sessions (%d skipped)", len(sessions), skipped)
     return sessions
