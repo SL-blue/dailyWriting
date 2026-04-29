@@ -18,7 +18,11 @@ python main.py --debug  # Enable debug logging
 open dist/DailyWriting.app
 ```
 
-Requires `GEMINI_API_KEY` environment variable for AI topic generation. Falls back to hardcoded prompts if missing.
+Supports two AI providers for topic generation:
+- **Gemini**: Set `GOOGLE_API_KEY` environment variable
+- **Claude**: Set `ANTHROPIC_API_KEY` environment variable
+
+Falls back to hardcoded prompts if no API keys are configured.
 
 ## Development
 
@@ -116,7 +120,12 @@ PyQt6 widgets and views:
 ### Settings (`~/.dailywriting/config.json`)
 ```json
 {
-  "ai": {"model": "gemini-2.0-flash", "api_key": null},
+  "ai": {
+    "provider": "gemini",
+    "gemini_model": "gemini-2.5-pro",
+    "claude_model": "claude-sonnet-4-20250514",
+    "retry_count": 3
+  },
   "writing": {"default_mode": "free", "autosave_interval": 30, "daily_word_goal": 500},
   "export": {"default_format": "markdown", "include_metadata": true},
   "appearance": {"font_size": 18, "line_spacing": 1.5}

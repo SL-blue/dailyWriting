@@ -599,8 +599,10 @@ class MainWindow(QMainWindow):
         # Reload settings
         self.settings = get_settings()
 
-        # Update topic generator model
-        self.topic_generator.model = self.settings.ai.model
+        # Update topic generator settings
+        self.topic_generator.set_provider(self.settings.ai.provider)
+        self.topic_generator.gemini_model = self.settings.ai.gemini_model
+        self.topic_generator.claude_model = self.settings.ai.claude_model
 
         # Update session view with new appearance settings
         self.session_view.apply_settings(self.settings)

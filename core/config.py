@@ -25,9 +25,12 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 @dataclass
 class AISettings:
     """Settings for AI topic generation."""
-    model: str = "gemini-2.5-flash"
+    provider: str = "gemini"  # "gemini" or "claude"
+    gemini_model: str = "gemini-2.5-pro"
+    claude_model: str = "claude-sonnet-4-6-20250514"
     retry_count: int = 3
-    # API key is read from environment, not stored in config
+    # API keys are read from environment variables:
+    # GOOGLE_API_KEY for Gemini, ANTHROPIC_API_KEY for Claude
 
 
 @dataclass

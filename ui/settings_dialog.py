@@ -129,21 +129,53 @@ class SettingsDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         widget.setLayout(layout)
 
-        # Model settings group
-        model_group = QGroupBox("Topic Generation")
-        model_layout = QFormLayout()
-        model_group.setLayout(model_layout)
+        # Provider settings group
+        provider_group = QGroupBox("AI Provider")
+        provider_layout = QFormLayout()
+        provider_group.setLayout(provider_layout)
 
-        self.model_combo = QComboBox()
-        self.model_combo.addItem("Gemini 2.5 Flash (Recommended)", "gemini-2.5-flash")
-        self.model_combo.addItem("Gemini 2.5 Pro", "gemini-2.5-pro")
-        model_layout.addRow("Model:", self.model_combo)
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItem("Google Gemini", "gemini")
+        self.provider_combo.addItem("Anthropic Claude", "claude")
+        self.provider_combo.currentIndexChanged.connect(self._on_provider_changed)
+        provider_layout.addRow("Provider:", self.provider_combo)
+
+        layout.addWidget(provider_group)
+
+        # Gemini settings group
+        self.gemini_group = QGroupBox("Gemini Settings")
+        gemini_layout = QFormLayout()
+        self.gemini_group.setLayout(gemini_layout)
+
+        self.gemini_model_combo = QComboBox()
+        self.gemini_model_combo.addItem("Gemini 2.5 Pro", "gemini-2.5-pro")
+        self.gemini_model_combo.addItem("Gemini 2.5 Flash", "gemini-2.5-flash")
+        gemini_layout.addRow("Model:", self.gemini_model_combo)
+
+        layout.addWidget(self.gemini_group)
+
+        # Claude settings group
+        self.claude_group = QGroupBox("Claude Settings")
+        claude_layout = QFormLayout()
+        self.claude_group.setLayout(claude_layout)
+
+        self.claude_model_combo = QComboBox()
+        self.claude_model_combo.addItem("Claude Sonnet 4.6", "claude-sonnet-4-6-20250514")
+        self.claude_model_combo.addItem("Claude Haiku 3.5", "claude-3-5-haiku-20241022")
+        claude_layout.addRow("Model:", self.claude_model_combo)
+
+        layout.addWidget(self.claude_group)
+
+        # General AI settings
+        general_group = QGroupBox("General")
+        general_layout = QFormLayout()
+        general_group.setLayout(general_layout)
 
         self.retry_spin = QSpinBox()
         self.retry_spin.setRange(1, 5)
-        model_layout.addRow("Retry attempts:", self.retry_spin)
+        general_layout.addRow("Retry attempts:", self.retry_spin)
 
-        layout.addWidget(model_group)
+        layout.addWidget(general_group)
 
         # API info
         info_group = QGroupBox("API Configuration")
@@ -151,9 +183,12 @@ class SettingsDialog(QDialog):
         info_group.setLayout(info_layout)
 
         info_label = QLabel(
-            "The Google API key is read from the GOOGLE_API_KEY environment variable.\n\n"
-            "To set it, add this to your shell profile (~/.zshrc or ~/.bashrc):\n"
-            "export GOOGLE_API_KEY='your-api-key-here'"
+            "API keys are read from environment variables:\n\n"
+            "For Gemini: GOOGLE_API_KEY\n"
+            "For Claude: ANTHROPIC_API_KEY\n\n"
+            "Add to your shell profile (~/.zshrc or ~/.bashrc):\n"
+            "export GOOGLE_API_KEY='your-gemini-key'\n"
+            "export ANTHROPIC_API_KEY='your-claude-key'"
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #888888; font-size: 13px;")
@@ -163,6 +198,12 @@ class SettingsDialog(QDialog):
         layout.addStretch()
 
         return widget
+
+    def _on_provider_changed(self, index: int):
+        """Update UI when provider selection changes."""
+        provider = self.provider_combo.currentData()
+        self.gemini_group.setVisible(provider == "gemini")
+        self.claude_group.setVisible(provider == "claude")
 
     def _create_export_tab(self) -> QWidget:
         """Create the Export settings tab."""
@@ -250,10 +291,18 @@ class SettingsDialog(QDialog):
         self.show_goal_check.setChecked(self.settings.writing.show_word_goal)
 
         # AI tab
-        idx = self.model_combo.findData(self.settings.ai.model)
+        idx = self.provider_combo.findData(self.settings.ai.provider)
         if idx >= 0:
-            self.model_combo.setCurrentIndex(idx)
+            self.provider_combo.setCurrentIndex(idx)
+        idx = self.gemini_model_combo.findData(self.settings.ai.gemini_model)
+        if idx >= 0:
+            self.gemini_model_combo.setCurrentIndex(idx)
+        idx = self.claude_model_combo.findData(self.settings.ai.claude_model)
+        if idx >= 0:
+            self.claude_model_combo.setCurrentIndex(idx)
         self.retry_spin.setValue(self.settings.ai.retry_count)
+        # Trigger visibility update
+        self._on_provider_changed(self.provider_combo.currentIndex())
 
         # Export tab
         idx = self.format_combo.findData(self.settings.export.default_format)
@@ -278,7 +327,9 @@ class SettingsDialog(QDialog):
         self.settings.writing.show_word_goal = self.show_goal_check.isChecked()
 
         # AI tab
-        self.settings.ai.model = self.model_combo.currentData()
+        self.settings.ai.provider = self.provider_combo.currentData()
+        self.settings.ai.gemini_model = self.gemini_model_combo.currentData()
+        self.settings.ai.claude_model = self.claude_model_combo.currentData()
         self.settings.ai.retry_count = self.retry_spin.value()
 
         # Export tab
