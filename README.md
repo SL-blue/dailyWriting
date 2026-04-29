@@ -47,14 +47,30 @@ A distraction-free writing app for macOS that helps you build a daily writing ha
    ```
 
 4. (Optional) Set up API keys for AI prompts:
+
+   Add the following to your `~/.zshrc` (or `~/.bashrc`):
    ```bash
-   # For Google Gemini (default)
+   # For Google Gemini (default provider)
    export GOOGLE_API_KEY="your-gemini-key"
 
-   # For Anthropic Claude (alternative)
+   # For Anthropic Claude (alternative provider)
    export ANTHROPIC_API_KEY="your-claude-key"
    ```
-   Add these to `~/.zshrc` or `~/.bashrc` for persistence.
+
+   Then reload your shell configuration:
+   ```bash
+   source ~/.zshrc
+   ```
+
+   Or simply open a new terminal window.
+
+   **Verify your keys are set:**
+   ```bash
+   echo $GOOGLE_API_KEY
+   echo $ANTHROPIC_API_KEY
+   ```
+
+   > **Note**: The app will use fallback prompts if no API keys are configured.
 
 5. Run the application:
    ```bash
