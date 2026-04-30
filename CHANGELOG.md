@@ -5,6 +5,20 @@ All notable changes to DailyWriting will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-29
+
+### Added
+- **Windows packaging support**: build a standalone `.exe` via `scripts\build_app.bat` and `DailyWriting-windows.spec`
+- `scripts/create_icon.py` — cross-platform icon generator (Pillow → `.ico`); replaces the macOS-only `create_icon.sh` for non-macOS environments and works on Windows/Linux out of the box
+- README sections for Windows venv activation, Windows API key setup (`setx` and PowerShell), and Windows build instructions
+- Settings dialog API-key hint now shows both macOS/Linux and Windows commands
+
+### Notes
+- The application's runtime code was already platform-agnostic (uses `pathlib.Path` and `Path.home()` throughout); only the packaging pipeline was macOS-specific. No core code changes were needed
+- Windows requires Pillow at build time only (`pip install Pillow`); the build script auto-installs it if missing
+
+---
+
 ## [1.2.0] - 2026-04-29
 
 ### Added

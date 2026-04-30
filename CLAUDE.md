@@ -212,12 +212,24 @@ Current coverage: 134 tests passing.
 
 ## Building
 
-```bash
-# Create standalone macOS app
-./scripts/build_app.sh
+### macOS — `.app` bundle
 
-# Create custom icon
+```bash
+./scripts/build_app.sh
+# Custom icon (sips/iconutil — macOS only):
 ./scripts/create_icon.sh path/to/1024x1024.png
 ```
 
-Output: `dist/DailyWriting.app` (~87MB standalone)
+Output: `dist/DailyWriting.app` (~87 MB standalone). Spec: `DailyWriting.spec`.
+
+### Windows — `.exe`
+
+```cmd
+scripts\build_app.bat
+REM Custom icon (Pillow — cross-platform):
+python scripts\create_icon.py path\to\1024x1024.png
+```
+
+Output: `dist\DailyWriting\DailyWriting.exe` plus a sibling folder of bundled DLLs and resources. Distribute the whole folder. Spec: `DailyWriting-windows.spec`.
+
+The Windows build uses `scripts/create_icon.py` (Pillow → `.ico`) instead of macOS's `create_icon.sh` (`sips` + `iconutil` → `.icns`). The Python icon script is cross-platform and is the recommended path for any non-macOS environment.

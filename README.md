@@ -19,7 +19,7 @@ A distraction-free writing app for macOS that helps you build a daily writing ha
 
 ## Requirements
 
-- macOS 10.15 or later
+- **macOS** 10.15 or later, **or Windows** 10/11
 - Python 3.9+ (for development)
 - API key for AI prompts (optional):
   - Google Gemini API key, OR
@@ -36,19 +36,33 @@ A distraction-free writing app for macOS that helps you build a daily writing ha
    ```
 
 2. Create and activate a virtual environment:
+
+   **macOS / Linux:**
    ```bash
    python3 -m venv venv
    source venv/bin/activate
    ```
 
+   **Windows (CMD):**
+   ```cmd
+   python -m venv venv
+   venv\Scripts\activate.bat
+   ```
+
+   **Windows (PowerShell):**
+   ```powershell
+   python -m venv venv
+   venv\Scripts\Activate.ps1
+   ```
+
 3. Install dependencies:
-   ```bash
+   ```
    pip install -r requirements.txt
    ```
 
 4. (Optional) Set up API keys for AI prompts:
 
-   Add the following to your `~/.zshrc` (or `~/.bashrc`):
+   **macOS / Linux** — add to your `~/.zshrc` (or `~/.bashrc`):
    ```bash
    # For Google Gemini (default provider)
    export GOOGLE_API_KEY="your-gemini-key"
@@ -70,26 +84,63 @@ A distraction-free writing app for macOS that helps you build a daily writing ha
    echo $ANTHROPIC_API_KEY
    ```
 
+   ---
+
+   **Windows (CMD)** — `setx` writes to the user's persistent environment:
+   ```cmd
+   setx GOOGLE_API_KEY "your-gemini-key"
+   setx ANTHROPIC_API_KEY "your-claude-key"
+   ```
+
+   `setx` only updates *future* terminal sessions. Close the terminal and open a new one, then verify:
+   ```cmd
+   echo %GOOGLE_API_KEY%
+   echo %ANTHROPIC_API_KEY%
+   ```
+
+   **Windows (PowerShell)** — equivalent persistent set:
+   ```powershell
+   [Environment]::SetEnvironmentVariable("GOOGLE_API_KEY", "your-gemini-key", "User")
+   [Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "your-claude-key", "User")
+   ```
+
+   You can also set them through *System Properties → Advanced → Environment Variables* in the Windows GUI.
+
    > **Note**: The app will use fallback prompts if no API keys are configured.
 
 5. Run the application:
-   ```bash
+   ```
    python main.py
    ```
 
 ### Building Standalone App
 
-To create a standalone macOS application:
+#### macOS — `.app` bundle
 
 ```bash
-# Install dev dependencies
 pip install -r requirements-dev.txt
-
-# Build the app
 ./scripts/build_app.sh
-
-# Run the app
 open dist/DailyWriting.app
+```
+
+Output: `dist/DailyWriting.app` (~87 MB).
+
+#### Windows — `.exe`
+
+```cmd
+pip install -r requirements-dev.txt
+pip install Pillow
+scripts\build_app.bat
+dist\DailyWriting\DailyWriting.exe
+```
+
+Output: `dist\DailyWriting\DailyWriting.exe` plus a sibling folder of bundled dependencies. Distribute the entire `dist\DailyWriting\` folder (or zip it) — the `.exe` won't run on its own.
+
+The build script auto-installs PyInstaller and Pillow (used for icon generation) if they're missing, generates `resources\icon.ico` from `resources\icon_source.png` on first run, and uses `DailyWriting-windows.spec` for PyInstaller configuration.
+
+To regenerate the icon from a custom 1024×1024 PNG:
+```
+python scripts\create_icon.py path\to\your-icon.png
 ```
 
 ## Usage

@@ -186,9 +186,12 @@ class SettingsDialog(QDialog):
             "API keys are read from environment variables:\n\n"
             "For Gemini: GOOGLE_API_KEY\n"
             "For Claude: ANTHROPIC_API_KEY\n\n"
-            "Add to your shell profile (~/.zshrc or ~/.bashrc):\n"
-            "export GOOGLE_API_KEY='your-gemini-key'\n"
-            "export ANTHROPIC_API_KEY='your-claude-key'"
+            "macOS / Linux — add to ~/.zshrc or ~/.bashrc:\n"
+            "  export GOOGLE_API_KEY='your-gemini-key'\n"
+            "  export ANTHROPIC_API_KEY='your-claude-key'\n\n"
+            "Windows (CMD) — persists for future sessions:\n"
+            "  setx GOOGLE_API_KEY \"your-gemini-key\"\n"
+            "  setx ANTHROPIC_API_KEY \"your-claude-key\""
         )
         info_label.setWordWrap(True)
         info_label.setStyleSheet("color: #888888; font-size: 13px;")
