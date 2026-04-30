@@ -36,13 +36,13 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("SettingsDialog")
         self.setWindowTitle("Settings")
         self.setMinimumSize(500, 400)
         self.settings = get_settings()
 
         self._build_ui()
         self._load_settings()
-        self._apply_style()
 
     def _build_ui(self):
         layout = QVBoxLayout()
@@ -193,8 +193,8 @@ class SettingsDialog(QDialog):
             "  setx GOOGLE_API_KEY \"your-gemini-key\"\n"
             "  setx ANTHROPIC_API_KEY \"your-claude-key\""
         )
+        info_label.setObjectName("SettingsHint")
         info_label.setWordWrap(True)
-        info_label.setStyleSheet("color: #888888; font-size: 13px;")
         info_layout.addWidget(info_label)
 
         layout.addWidget(info_group)
@@ -271,11 +271,11 @@ class SettingsDialog(QDialog):
 
         self.theme_combo = QComboBox()
         self.theme_combo.addItem("Dark", "dark")
-        # Future: self.theme_combo.addItem("Light", "light")
+        self.theme_combo.addItem("Light", "light")
         theme_layout.addRow("Theme:", self.theme_combo)
 
-        theme_note = QLabel("Additional themes coming soon.")
-        theme_note.setStyleSheet("color: #888888; font-size: 12px;")
+        theme_note = QLabel("Theme switches apply immediately on Save.")
+        theme_note.setObjectName("SettingsHint")
         theme_layout.addRow("", theme_note)
 
         layout.addWidget(theme_group)
@@ -369,74 +369,3 @@ class SettingsDialog(QDialog):
             self._load_settings()
             logger.info("Settings reset to defaults")
 
-    def _apply_style(self):
-        """Apply dialog styling."""
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1a1a1a;
-            }
-            QTabWidget::pane {
-                border: 1px solid #333333;
-                background-color: #1a1a1a;
-            }
-            QTabBar::tab {
-                background-color: #2a2a2a;
-                color: #cccccc;
-                padding: 8px 16px;
-                border: 1px solid #333333;
-                border-bottom: none;
-            }
-            QTabBar::tab:selected {
-                background-color: #1a1a1a;
-                color: #ffffff;
-            }
-            QGroupBox {
-                color: #ffffff;
-                font-weight: bold;
-                border: 1px solid #333333;
-                border-radius: 4px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-            QLabel {
-                color: #cccccc;
-            }
-            QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-                background-color: #2a2a2a;
-                color: #ffffff;
-                border: 1px solid #444444;
-                border-radius: 4px;
-                padding: 4px 8px;
-                min-height: 24px;
-            }
-            QCheckBox {
-                color: #cccccc;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-            }
-            QPushButton {
-                background-color: #333333;
-                color: #ffffff;
-                border: none;
-                border-radius: 4px;
-                padding: 8px 16px;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #444444;
-            }
-            QPushButton:default {
-                background-color: #00b894;
-                color: #000000;
-            }
-            QPushButton:default:hover {
-                background-color: #00d9a5;
-            }
-        """)

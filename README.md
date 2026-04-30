@@ -11,7 +11,7 @@ A distraction-free writing app for macOS that helps you build a daily writing ha
 - **Session History** - Search, filter, and review past writing sessions
 - **Export Options** - Export to Markdown, TXT, JSON, or HTML
 - **Backup & Restore** - Keep your writing safe with automatic backups
-- **Dark Mode** - Easy on the eyes for late-night writing sessions
+- **Dark & Light Themes** - Manual switching, easy on the eyes day or night
 
 ## Screenshots
 

@@ -55,7 +55,7 @@ class AppearanceSettings:
     """Settings for UI appearance."""
     font_size: int = 20
     line_spacing: float = 1.5
-    theme: str = "dark"  # Currently only "dark" is supported
+    theme: str = "dark"  # "dark" or "light"
     editor_font_family: str = ""  # Empty = system default
 
 

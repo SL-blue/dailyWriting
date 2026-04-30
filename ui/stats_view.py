@@ -112,7 +112,6 @@ class StatsView(QWidget):
         self.setObjectName("StatsView")
 
         self._build_ui()
-        self._apply_style()
 
     def _build_ui(self):
         """Build the dashboard UI."""
@@ -337,82 +336,3 @@ class StatsView(QWidget):
             self.goal_card.hide()
             self.no_goal_label.show()
 
-    def _apply_style(self):
-        """Apply styling to the view."""
-        self.setStyleSheet("""
-            QWidget#StatsView {
-                background-color: #000000;
-            }
-            QWidget#StatsContent {
-                background-color: #000000;
-            }
-            QScrollArea#StatsScrollArea {
-                background: transparent;
-                border: none;
-            }
-
-            QLabel#SectionTitle {
-                color: #00b894;
-                font-size: 14px;
-                font-weight: 700;
-                letter-spacing: 1px;
-            }
-
-            QFrame#StatCard {
-                background-color: #1a1a1a;
-                border-radius: 8px;
-                min-width: 150px;
-            }
-
-            QLabel#StatCardTitle {
-                color: #888888;
-                font-size: 11px;
-                font-weight: 600;
-                letter-spacing: 1px;
-            }
-
-            QLabel#StatCardValue {
-                color: #ffffff;
-                font-size: 28px;
-                font-weight: 700;
-            }
-
-            QLabel#StatCardSubtitle {
-                color: #666666;
-                font-size: 11px;
-            }
-
-            QFrame#GoalCard {
-                background-color: #1a1a1a;
-                border-radius: 8px;
-                max-width: 400px;
-            }
-
-            QLabel#GoalWordsLabel {
-                color: #ffffff;
-                font-size: 20px;
-                font-weight: 600;
-            }
-
-            QProgressBar#GoalProgressBar {
-                background-color: #333333;
-                border: none;
-                border-radius: 4px;
-                height: 8px;
-            }
-            QProgressBar#GoalProgressBar::chunk {
-                background-color: #00b894;
-                border-radius: 4px;
-            }
-
-            QLabel#GoalStreakLabel {
-                color: #00b894;
-                font-size: 13px;
-            }
-
-            QLabel#NoGoalLabel {
-                color: #666666;
-                font-size: 14px;
-                font-style: italic;
-            }
-        """)

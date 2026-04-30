@@ -41,6 +41,7 @@ from ui.settings_dialog import SettingsDialog
 from ui.stats_view import StatsView
 from ui.about_dialog import AboutDialog
 from ui.shortcuts_dialog import ShortcutsDialog
+from ui.theme import apply_theme
 
 logger = get_logger("main_window")
 
@@ -202,7 +203,6 @@ class MainWindow(QMainWindow):
         self.history_view.sessionsChanged.connect(self._on_sessions_changed)
 
         self.show_calendar()
-        self._apply_basic_style()
 
         # Check for abandoned drafts after UI is ready
         QTimer.singleShot(500, self._check_abandoned_drafts)
@@ -357,135 +357,6 @@ class MainWindow(QMainWindow):
 
 
 
-    # ----- Basic styling to get close to your mock -----
-    def _apply_basic_style(self):
-        self.setStyleSheet("""
-        QMainWindow {
-            background-color: #000000;
-        }
-        QWidget#Sidebar {
-            background-color: #111111;
-        }
-        QLabel#SidebarTitle {
-            color: #ff3b30;
-            font-weight: 700;
-            font-size: 24px;
-        }
-        QLabel#SectionLabel {
-            color: #00d0a0;
-            font-weight: 600;
-            font-size: 16px;
-        }
-        QPushButton#NavButton {
-            background-color: #ff3b30;
-            color: white;
-            font-weight: 600;
-            padding: 10px;
-            border: none;
-        }
-        QPushButton#FreeButton {
-            background-color: #00b894;
-            color: black;
-            font-weight: 600;
-            padding: 10px;
-            border: none;
-        }
-        QPushButton#RandomButton {
-            background-color: #ff3b30;
-            color: black;
-            font-weight: 600;
-            padding: 10px;
-            border: none;
-        }
-        QLabel#HeaderTitle {
-            color: #ffffff;
-            font-weight: 700;
-            font-size: 28px;
-        }
-        QLabel#StreakLabel {
-            color: #ffffff;
-            font-weight: 600;
-            font-size: 16px;
-        }
-        QPushButton#FinishButton {
-            background-color: #00b894;
-            color: black;
-            font-weight: 600;
-            padding: 8px 16px;
-            border: none;
-        }
-        QLabel#PromptTitle {
-            color: #ff3b30;
-            font-weight: 700;
-            font-size: 20px;
-        }
-        QLabel#PromptBody {
-            color: #ffffff;
-            font-size: 18px;
-        }
-        QLabel#PromptTags {
-            color: #bbbbbb;
-            font-size: 13px;
-        }
-        QLineEdit#SessionTitle {
-            font-size: 24px;      /* bigger title */
-            font-weight: 600;
-            color: #777777;
-            border: none;
-        }
-        QTextEdit#WritingEditor {
-            font-size: 20px;      /* bigger body text */
-        }
-        QLabel#TimeLabel {
-            font-weight: 600;
-        }
-        QLabel#WordsLabel {
-            font-weight: 600;
-            color: #00b894;
-        }
-        QMenuBar {
-            background-color: #111111;
-            color: #ffffff;
-        }
-        QMenuBar::item {
-            background-color: transparent;
-            padding: 4px 8px;
-        }
-        QMenuBar::item:selected {
-            background-color: #333333;
-        }
-        QMenu {
-            background-color: #222222;
-            color: #ffffff;
-            border: 1px solid #333333;
-        }
-        QMenu::item {
-            padding: 6px 24px;
-        }
-        QMenu::item:selected {
-            background-color: #444444;
-        }
-        QMenu::separator {
-            height: 1px;
-            background-color: #333333;
-            margin: 4px 0;
-        }
-        QPushButton#SettingsButton {
-            background-color: #2a2a2a;
-            color: #888888;
-            font-weight: 500;
-            padding: 10px;
-            border: 1px solid #333333;
-            border-radius: 4px;
-            text-align: left;
-        }
-        QPushButton#SettingsButton:hover {
-            background-color: #333333;
-            color: #ffffff;
-            border-color: #444444;
-        }
-        """)
-
     def _create_menu_bar(self):
         """Create the application menu bar."""
         menubar = self.menuBar()
@@ -616,6 +487,11 @@ class MainWindow(QMainWindow):
         # Reload settings
         self.settings = get_settings()
 
+        # Re-apply global theme so all open widgets restyle live (must happen
+        # before session_view.apply_settings, so the editor's font QSS lands
+        # on top of the latest global stylesheet)
+        apply_theme(self.settings.appearance.theme)
+
         # Update topic generator settings
         self.topic_generator.set_provider(self.settings.ai.provider)
         self.topic_generator.gemini_model = self.settings.ai.gemini_model
@@ -623,6 +499,9 @@ class MainWindow(QMainWindow):
 
         # Update session view with new appearance settings
         self.session_view.apply_settings(self.settings)
+
+        # Refresh calendar so today/completed-day cell colors track the theme
+        self.calendar_view.refresh_month()
 
         logger.info("Settings applied")
 

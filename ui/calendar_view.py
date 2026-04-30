@@ -8,6 +8,7 @@ from PyQt6.QtGui import QTextCharFormat, QBrush, QColor, QFont
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QCalendarWidget, QLabel
 
 from core.storage import load_sessions_for_month
+from ui.theme import current_palette
 
 
 class CalendarView(QWidget):
@@ -16,7 +17,7 @@ class CalendarView(QWidget):
     Emits `dateClicked` signal when a date is clicked.
     """
     dateClicked = pyqtSignal(date)
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -27,8 +28,6 @@ class CalendarView(QWidget):
         self.calendar = QCalendarWidget()
         self.calendar.setObjectName("WritingCalendar")
         layout.addWidget(self.calendar)
-
-        self._apply_style()
 
         layout.addWidget(self.label)
         layout.addWidget(self.calendar)
@@ -53,6 +52,7 @@ class CalendarView(QWidget):
 
     def refresh_month(self):
         cal = self.calendar
+        palette = current_palette()
 
         # 1. Reset all formatting
         cal.setDateTextFormat(QDate(), QTextCharFormat())
@@ -67,8 +67,8 @@ class CalendarView(QWidget):
         # ----------------------------------------------------
         today = QDate.currentDate()
         fmt_today = QTextCharFormat()
-        fmt_today.setBackground(QColor("#333333"))
-        fmt_today.setForeground(QColor("#ffffff"))
+        fmt_today.setBackground(QColor(palette["calendar_today_bg"]))
+        fmt_today.setForeground(QColor(palette["calendar_today_fg"]))
         fmt_today.setFontWeight(QFont.Weight.DemiBold)
         cal.setDateTextFormat(today, fmt_today)
 
@@ -83,10 +83,8 @@ class CalendarView(QWidget):
                 qd = QDate(d.year, d.month, d.day)
 
                 fmt = QTextCharFormat()
-
-                # Modern highlight style:
-                fmt.setBackground(QColor("#005f46"))      # subtle green glow
-                fmt.setForeground(QColor("#ffffff"))
+                fmt.setBackground(QColor(palette["calendar_completed_bg"]))
+                fmt.setForeground(QColor(palette["calendar_completed_fg"]))
                 fmt.setFontWeight(QFont.Weight.Bold)
                 fmt.setFontPointSize(11)
 
@@ -101,34 +99,4 @@ class CalendarView(QWidget):
         for d in self.completed_dates:
             qdate = QDate(d.year, d.month, d.day)
             self.calendar.setDateTextFormat(qdate, default_fmt)
-
-    def _apply_style(self):
-        """Visual style for the calendar widget."""
-        self.calendar.setStyleSheet("""
-        QCalendarWidget#WritingCalendar {
-            background-color: #111111;
-            color: #ffffff;
-            border: none;
-        }
-        /* grid / day cells */
-        QCalendarWidget#WritingCalendar QAbstractItemView:enabled {
-            background-color: #111111;
-            selection-background-color: #333333;
-            selection-color: #ffffff;
-            outline: none;
-        }
-        /* month navigation bar */
-        QCalendarWidget#WritingCalendar QWidget#qt_calendar_navigationbar {
-            background-color: #111111;
-        }
-        QCalendarWidget#WritingCalendar QToolButton {
-            color: #ffffff;
-            font-weight: 600;
-            background: transparent;
-            border: none;
-        }
-        QCalendarWidget#WritingCalendar QToolButton::menu-indicator {
-            image: none;
-        }
-        """)
 

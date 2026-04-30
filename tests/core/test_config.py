@@ -96,6 +96,25 @@ class TestAppSettings:
         assert settings.writing.daily_word_goal == 0
         assert settings.appearance.font_size == 20
 
+    def test_theme_round_trip(self, tmp_path, monkeypatch):
+        """Theme value must persist through save/load."""
+        config_file = tmp_path / "config.json"
+        import core.config as config_module
+        monkeypatch.setattr(config_module, "CONFIG_FILE", config_file)
+        monkeypatch.setattr(config_module, "CONFIG_DIR", tmp_path)
+
+        settings = AppSettings()
+        settings.appearance.theme = "light"
+        settings.save()
+
+        loaded = AppSettings.load()
+        assert loaded.appearance.theme == "light"
+
+        loaded.appearance.theme = "dark"
+        loaded.save()
+        reloaded = AppSettings.load()
+        assert reloaded.appearance.theme == "dark"
+
     def test_partial_config_file(self, tmp_path, monkeypatch):
         """Config file with only some settings should use defaults for others."""
         config_file = tmp_path / "config.json"

@@ -73,12 +73,12 @@ class ShortcutsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("ShortcutsDialog")
         self.setWindowTitle("Keyboard Shortcuts")
         self.setFixedSize(450, 500)
         self.setModal(True)
 
         self._build_ui()
-        self._apply_style()
 
     def _build_ui(self):
         """Build the dialog UI."""
@@ -130,66 +130,3 @@ class ShortcutsDialog(QDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-    def _apply_style(self):
-        """Apply styling to the dialog."""
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1a1a1a;
-            }
-
-            QLabel#DialogTitle {
-                color: #ffffff;
-                font-size: 20px;
-                font-weight: 700;
-            }
-
-            QLabel#SectionTitle {
-                color: #00b894;
-                font-size: 12px;
-                font-weight: 600;
-                letter-spacing: 1px;
-                margin-top: 8px;
-            }
-
-            QScrollArea#ShortcutsScroll {
-                background: transparent;
-                border: none;
-            }
-
-            QWidget#ShortcutsContent {
-                background-color: #1a1a1a;
-            }
-
-            QFrame#ShortcutRow {
-                background-color: #252525;
-                border-radius: 4px;
-            }
-
-            QLabel#ShortcutKey {
-                color: #00b894;
-                font-size: 14px;
-                font-weight: 600;
-                font-family: monospace;
-            }
-
-            QLabel#ShortcutDesc {
-                color: #cccccc;
-                font-size: 14px;
-            }
-
-            QPushButton#CloseButton {
-                background-color: #333333;
-                color: #ffffff;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton#CloseButton:hover {
-                background-color: #444444;
-            }
-            QPushButton#CloseButton:pressed {
-                background-color: #555555;
-            }
-        """)

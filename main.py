@@ -4,7 +4,9 @@ import sys
 from PyQt6.QtWidgets import QApplication
 
 from core.logging_config import setup_logging
+from core.config import get_settings
 from ui.main_window import MainWindow
+from ui.theme import apply_theme
 
 
 def main() -> None:
@@ -15,6 +17,9 @@ def main() -> None:
     # Create the Qt application object
     app = QApplication(sys.argv)
     app.setApplicationName("DailyWriting")
+
+    # Apply the user's chosen theme before any widgets are constructed
+    apply_theme(get_settings().appearance.theme)
 
     # Create and show the main window
     window = MainWindow()

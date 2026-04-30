@@ -296,21 +296,20 @@ class SessionView(QWidget):
         self._autosave_timer.setInterval(interval_ms)
 
     def _apply_appearance_settings(self):
-        """Apply appearance settings to the editor."""
-        appearance = self._settings.appearance
+        """Apply font settings to the editor.
 
-        # Build font style
+        Background/foreground colors are handled by the global theme
+        stylesheet (see ui/theme.py) — keep this block font-only so it
+        doesn't override theme colors.
+        """
+        appearance = self._settings.appearance
         font_family = appearance.editor_font_family or "system-ui"
         font_size = appearance.font_size
 
         self.editor.setStyleSheet(f"""
-            QTextEdit {{
+            QTextEdit#WritingEditor {{
                 font-family: {font_family};
                 font-size: {font_size}px;
-                background-color: #1a1a1a;
-                color: #ffffff;
-                border: none;
-                padding: 8px;
             }}
         """)
 

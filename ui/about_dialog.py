@@ -25,12 +25,12 @@ class AboutDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("AboutDialog")
         self.setWindowTitle(f"About {__app_name__}")
         self.setFixedSize(400, 300)
         self.setModal(True)
 
         self._build_ui()
-        self._apply_style()
 
     def _build_ui(self):
         """Build the dialog UI."""
@@ -88,53 +88,3 @@ class AboutDialog(QDialog):
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
-    def _apply_style(self):
-        """Apply styling to the dialog."""
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #1a1a1a;
-            }
-
-            QLabel#AppName {
-                color: #00b894;
-                font-size: 28px;
-                font-weight: 700;
-            }
-
-            QLabel#Version {
-                color: #888888;
-                font-size: 14px;
-            }
-
-            QFrame#Separator {
-                background-color: #333333;
-                max-height: 1px;
-            }
-
-            QLabel#Description {
-                color: #cccccc;
-                font-size: 14px;
-                line-height: 1.5;
-            }
-
-            QLabel#Credits {
-                color: #666666;
-                font-size: 12px;
-            }
-
-            QPushButton#CloseButton {
-                background-color: #00b894;
-                color: #000000;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton#CloseButton:hover {
-                background-color: #00a383;
-            }
-            QPushButton#CloseButton:pressed {
-                background-color: #009274;
-            }
-        """)

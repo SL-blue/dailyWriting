@@ -33,7 +33,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
-# Run tests (134 tests)
+# Run tests (150 tests)
 pytest tests/ -v
 
 # Run with coverage
@@ -90,6 +90,7 @@ PyQt6 widgets and views:
 | `tag_selector_dialog.py` | Modal for selecting prompt tags |
 | `session_list_dialog.py` | Sessions for a specific date |
 | `session_detail_dialog.py` | Full session details with export |
+| `theme.py` | Centralized Dark/Light palettes + global QSS builder; `apply_theme(name)` swaps the running app stylesheet |
 
 ### Data Flow
 1. User starts session → SessionManager creates WritingSession
@@ -128,7 +129,7 @@ PyQt6 widgets and views:
   },
   "writing": {"default_mode": "free", "autosave_interval": 30, "daily_word_goal": 500},
   "export": {"default_format": "markdown", "include_metadata": true},
-  "appearance": {"font_size": 18, "line_spacing": 1.5}
+  "appearance": {"font_size": 18, "line_spacing": 1.5, "theme": "dark"}
 }
 ```
 
@@ -202,13 +203,24 @@ Each `Tag` has: `id`, `category`, `layer`, `label` (user-facing), `directive` (t
 2. The dialog auto-discovers new tags via `tags_in_category()` — no UI change needed unless you add a new *category*.
 3. New categories must be registered in `LAYER_CATEGORIES` (and the dialog's `_CATEGORY_LABELS` map for a human label).
 
+## Theme System
+
+Single global stylesheet, two palettes (Dark + Light), live switching.
+
+- `ui/theme.py` defines `DARK_PALETTE` and `LIGHT_PALETTE` (~31 semantic tokens each), plus `apply_theme(name)` which sets `QApplication.setStyleSheet(...)` from a single rendered QSS string.
+- `main.py` calls `apply_theme(get_settings().appearance.theme)` at startup before constructing widgets.
+- `main_window._on_settings_changed()` calls `apply_theme(...)` immediately when the user clicks Save in Settings → Appearance, so all open widgets re-style without a restart. Calendar cells use `current_palette()` directly (they're set via `QTextCharFormat`, not QSS) and are refreshed in the same handler.
+- **Themed widgets must set `setObjectName(...)`**; the global stylesheet targets selectors like `#Sidebar`, `#LayerCard`, `#StatCard`, `QDialog#TagSelectorDialog QLabel#DialogTitle`, etc. A widget without an object name falls back to the default Qt palette and will look wrong in dark mode.
+- Per-widget `setStyleSheet()` is reserved for layout-affecting properties only (e.g. font-family/font-size in `session_view._apply_appearance_settings`). Colors must come through `theme.py`.
+- Defaults to dark on any unknown value (defensive for old/garbage configs).
+
 ## Testing
 
 Tests are organized by layer:
 - `tests/core/` - Business logic tests (no Qt required)
 - `tests/conftest.py` - Shared fixtures
 
-Current coverage: 134 tests passing.
+Current coverage: 150 tests passing.
 
 ## Building
 

@@ -5,6 +5,24 @@ All notable changes to DailyWriting will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-30
+
+### Added
+- **Light theme**, alongside the existing Dark theme. Switch via Settings → Appearance → Theme; changes apply immediately without restart
+- `ui/theme.py` — centralized palette + global stylesheet module. Two palettes (Dark, Light) of ~31 semantic tokens each; `apply_theme(name)` re-styles the running QApplication
+- 16 new tests covering palette shape, theme application, fallback behavior, and config round-trip (150 total tests)
+
+### Changed
+- All UI files now share a single global stylesheet keyed by object names; nine `_apply_style()` methods removed across `main_window`, `session_view`, `settings_dialog`, `tag_selector_dialog`, `calendar_view`, `history_view`, `stats_view`, `about_dialog`, `shortcuts_dialog`
+- `session_view._apply_appearance_settings` reduced to font-only QSS so it no longer overrides theme colors
+- Calendar today/completed-day cell colors now come from `current_palette()` so they track the active theme
+- Tag selector dialog now follows the app theme — fixed the long-standing visual inconsistency where it was hardcoded light regardless of setting
+
+### Fixed
+- Settings dialog Theme picker is now functional (was a cosmetic placeholder showing only "Dark")
+
+---
+
 ## [1.3.0] - 2026-04-29
 
 ### Added

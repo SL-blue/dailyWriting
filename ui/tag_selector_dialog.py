@@ -238,6 +238,7 @@ class LayerCard(QWidget):
 class TagSelectorDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setObjectName("TagSelectorDialog")
         self.setWindowTitle("Generate a random topic")
         self.resize(640, 720)
 
@@ -295,120 +296,5 @@ class TagSelectorDialog(QDialog):
 
         main_layout.addLayout(bottom_row)
 
-        self._apply_style()
-
     def selected_layer_state(self) -> Dict[str, Dict[str, object]]:
         return {layer: card.layer_state() for layer, card in self._cards.items()}
-
-    def _apply_style(self):
-        self.setStyleSheet("""
-        QDialog {
-            background-color: #ffffff;
-        }
-        QWidget#CardsContainer {
-            background-color: #ffffff;
-        }
-        QScrollArea {
-            background: transparent;
-            border: none;
-        }
-
-        QLabel#DialogTitle {
-            font-size: 26px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            color: #ff3b30;
-        }
-        QWidget#DialogUnderline {
-            background-color: #000000;
-        }
-        QLabel#DialogSubtitle {
-            font-size: 14px;
-            font-weight: 600;
-            margin-top: 8px;
-            margin-bottom: 4px;
-            color: #111111;
-        }
-
-        QWidget#LayerCard {
-            background-color: #fafafa;
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-        }
-        QLabel#LayerHeader {
-            font-size: 15px;
-            font-weight: 800;
-            letter-spacing: 1px;
-            color: #111111;
-        }
-        QLabel#LayerDesc {
-            font-size: 12px;
-            color: #666666;
-        }
-        QLabel#CategoryLabel {
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #555555;
-            margin-top: 4px;
-        }
-
-        /* Tri-state segmented control */
-        QPushButton#StateButton {
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            padding: 8px 12px;
-            border: 1px solid #cccccc;
-            background-color: #ffffff;
-            color: #111111;
-        }
-        QPushButton#StateButton:hover {
-            background-color: #f0f0f0;
-        }
-        QPushButton#StateButton:checked {
-            background-color: #111111;
-            color: #ffffff;
-            border-color: #111111;
-        }
-
-        /* Tag chips */
-        QPushButton#TagButton {
-            font-size: 12px;
-            font-weight: 600;
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid #cccccc;
-            background-color: #ffffff;
-            color: #111111;
-        }
-        QPushButton#TagButton:hover {
-            background-color: #f0f0f0;
-        }
-        QPushButton#TagButton:checked {
-            background-color: #111111;
-            color: #ffffff;
-            border-color: #111111;
-        }
-
-        QPushButton#SecondaryButton {
-            background-color: #b3b3b3;
-            color: #000000;
-            font-weight: 600;
-            padding: 10px 24px;
-            border: none;
-        }
-        QPushButton#SecondaryButton:hover {
-            background-color: #c6c6c6;
-        }
-        QPushButton#PrimaryButton {
-            background-color: #6ee7c8;
-            color: #000000;
-            font-weight: 700;
-            padding: 10px 28px;
-            border: none;
-        }
-        QPushButton#PrimaryButton:hover {
-            background-color: #5fd7b8;
-        }
-        """)
