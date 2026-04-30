@@ -33,7 +33,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
-# Run tests (115 tests)
+# Run tests (134 tests)
 pytest tests/ -v
 
 # Run with coverage
@@ -66,8 +66,8 @@ Business logic with no UI dependencies:
 | `backup.py` | Backup/restore with rotation policy |
 | `config.py` | Settings management (`~/.dailywriting/config.json`) |
 | `topic_generator.py` | Dual AI provider support (Gemini/Claude) with automatic fallback |
-| `prompt_builder.py` | LLM instruction construction from tags |
-| `tags.py` | Tag registry (genre, mood, place, time, event, item, skill, form) |
+| `prompt_builder.py` | Builds the LLM instruction from per-layer state (Off / Random / Specified) |
+| `tags.py` | Layered tag registry: 4 layers (territory, emotional_weather, craft, seed) over 12 categories |
 | `streak_days.py` | Consecutive writing day tracking |
 | `stats.py` | Legacy streak calculations |
 | `utils.py` | Mixed CJK/English word counting |
@@ -142,10 +142,65 @@ PyQt6 widgets and views:
 
 - **CJK Support**: `utils.mixed_word_count()` handles mixed CJK/English using Unicode ranges
 - **AI Fallback**: TopicGenerator supports dual providers (Gemini/Claude), retries on errors, falls back between providers, then to local prompts
-- **Tag System**: Tags inspire prompt generation without appearing explicitly
+- **Tag System**: Four-layer model (Territory, Emotional Weather, Craft, Seed). Each layer is independently Off / Random / Specified. Random selection happens at *generation time*, so re-rolling produces variety. Seed defaults to Random when no layer state is provided. See `TAG_SYSTEM_SPEC.md` for the full design contract.
 - **Auto-Recovery**: Abandoned drafts are detected on startup and offered for recovery
 - **Statistics**: Full stats including streaks, averages, productivity insights, goal tracking
 - **Search**: Real-time filtering with query, mode, date range, word count filters
+
+## Tag System
+
+The prompt system is layered — see `TAG_SYSTEM_SPEC.md` for the full design contract. A summary of what code agents need to know:
+
+### Layers and categories
+
+| Layer | Categories |
+|---|---|
+| `territory` | `genre`, `register` |
+| `emotional_weather` | `mood`, `tension` |
+| `craft` | `perspective`, `temporal_stance`, `structural_move`, `form` |
+| `seed` | `situation`, `object_role`, `setting_role`, `time_role` |
+
+Each `Tag` has: `id`, `category`, `layer`, `label` (user-facing), `directive` (the phrase injected into the prompt). Tags do **not** carry concrete noun lists — that was the old system and produced repetitive output.
+
+### LayerState — the contract between UI and prompt builder
+
+`prompt_builder.build_topic_instruction(layer_state)` and `topic_generator.generate_topic(layer_state)` both consume the same dict shape:
+
+```python
+{
+    "territory":         {"state": "off"},
+    "emotional_weather": {"state": "random"},
+    "craft":             {"state": "specified", "tag_ids": ["perspective_second", "form_paragraph"]},
+    "seed":              {"state": "random"},
+}
+```
+
+- `state` is one of `"off"`, `"random"`, `"specified"`.
+- `tag_ids` is only read when `state == "specified"`.
+- If `layer_state` is `None` or omits a layer, `seed` defaults to `"random"` and other layers default to `"off"`.
+
+### Random selection rules
+
+- For `territory`, `emotional_weather`, `craft` in RANDOM: pick one tag from one randomly-chosen category in the layer.
+- For `seed` in RANDOM: pick from `situation` OR one of the role categories — never both. A situation tag alone is usually enough to anchor a scene.
+- The form tag (from Craft) drives the closing instruction (`Write exactly one sentence.` / `Write a short paragraph (2–4 sentences).` / `Write exactly two sentences.` / default `Write one or two sentences.`).
+- Each generated prompt always includes `Invent all specifics. Avoid the most obvious imagery for this combination.` plus a rotating `Do not use: …` list of 4 overused defaults.
+
+### Where the layers come together
+
+| File | Role |
+|---|---|
+| `core/tags.py` | `TAG_REGISTRY`, `LAYER_CATEGORIES`, `LAYER_LABELS`, helpers |
+| `core/prompt_builder.py` | Resolves layer state → list of selected tags → final instruction string |
+| `core/topic_generator.py` | Calls `build_topic_instruction(layer_state)` and ships it to Gemini/Claude |
+| `ui/tag_selector_dialog.py` | Four `LayerCard` widgets with Off/Random/Pick tri-state and disclosed picker; emits `selected_layer_state()` |
+| `tests/core/test_prompt_builder.py` | Verifies defaults, off/random/specified per layer, form-tag closings, anti-repetition |
+
+### Adding new tags
+
+1. Add a `Tag(...)` entry to `_RAW_TAGS` in `core/tags.py` under the right layer/category section. Use a unique `id` and a short, label-style `directive`.
+2. The dialog auto-discovers new tags via `tags_in_category()` — no UI change needed unless you add a new *category*.
+3. New categories must be registered in `LAYER_CATEGORIES` (and the dialog's `_CATEGORY_LABELS` map for a human label).
 
 ## Testing
 
@@ -153,7 +208,7 @@ Tests are organized by layer:
 - `tests/core/` - Business logic tests (no Qt required)
 - `tests/conftest.py` - Shared fixtures
 
-Current coverage: 115 tests passing.
+Current coverage: 134 tests passing.
 
 ## Building
 

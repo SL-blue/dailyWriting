@@ -240,14 +240,12 @@ class MainWindow(QMainWindow):
         self.show_session()
 
     def start_random_topic(self):
-
         dlg = TagSelectorDialog(self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
 
-        tag_ids = dlg.selected_tags()
+        layer_state = dlg.selected_layer_state()
 
-        # Show loading indicator while generating topic
         progress = QProgressDialog("Generating writing prompt...", None, 0, 0, self)
         progress.setWindowTitle("AI Topic Generation")
         progress.setWindowModality(Qt.WindowModality.WindowModal)
@@ -255,12 +253,11 @@ class MainWindow(QMainWindow):
         progress.setCancelButton(None)
         progress.show()
 
-        # Process events to show the dialog
         from PyQt6.QtWidgets import QApplication
         QApplication.processEvents()
 
         try:
-            topic = self.topic_generator.generate_topic(tag_ids)
+            topic = self.topic_generator.generate_topic(layer_state)
         finally:
             progress.close()
 

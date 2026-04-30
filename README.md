@@ -97,7 +97,33 @@ open dist/DailyWriting.app
 ### Starting a Session
 
 1. **Free Writing**: Click "FREE WRITING" to start writing without a prompt
-2. **AI Prompt**: Click "RANDOM TOPIC (AI)" to get an AI-generated writing prompt
+2. **AI Prompt**: Click "RANDOM TOPIC (AI)" to open the layered tag selector and get an AI-generated writing prompt
+
+### The Tag System
+
+The "RANDOM TOPIC (AI)" dialog organizes prompt configuration into **four layers**. Each layer answers a different question about the prompt and contributes a different kind of constraint to the AI.
+
+| Layer | Question it answers | Categories |
+|---|---|---|
+| **Territory** | What world are we in? | Genre, Register |
+| **Emotional Weather** | What does the scene feel like? | Mood, Tension |
+| **Craft** | How is it written? | Perspective, Temporal stance, Structural move, Form |
+| **Seed** | What's the spark? | Situation, Object role, Setting role, Time role |
+
+For each layer you choose one of three states:
+
+- **OFF** — the layer contributes nothing to the prompt.
+- **RANDOM** — the system picks one tag from one randomly-chosen category in the layer at generation time. Hit *Generate* twice and you'll get different prompts even with the same settings.
+- **PICK** — you choose specific tags. A picker reveals chips grouped by category; toggle as many as you want.
+
+**Default state**: Seed is set to RANDOM, all other layers are OFF. This gives you a varied seed prompt every time without needing to configure anything.
+
+**Tips**
+
+- Start with the default and just keep clicking *Generate* — the random Seed alone produces a wide range of prompts.
+- Set Territory to RANDOM when you want a different *kind* of writing each session (literary one day, noir the next).
+- Use PICK on Craft when you want to practice a specific technique (e.g. "second person + opens with dialogue").
+- The system intentionally avoids overused defaults (candles, rain, ticking clocks, music boxes, etc.) to push the model away from cliché imagery.
 
 ### Navigation
 

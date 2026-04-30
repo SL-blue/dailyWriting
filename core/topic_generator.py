@@ -7,13 +7,13 @@ from __future__ import annotations
 import os
 import random
 import time
-from typing import List, Optional, Any, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from google.genai import Client as GeminiClient
     from anthropic import Anthropic as AnthropicClient
 
-from .prompt_builder import build_topic_instruction
+from .prompt_builder import LayerState, build_topic_instruction
 from .logging_config import get_logger
 
 logger = get_logger("topic_generator")
@@ -96,12 +96,14 @@ class TopicGenerator:
             return self._gemini_client
         return None
 
-    def generate_topic(self, tag_ids: Optional[List[str]] = None) -> str:
+    def generate_topic(self, layer_state: Optional[LayerState] = None) -> str:
         """
-        Generate a writing topic based on provided tag IDs.
+        Generate a writing topic from a per-layer configuration.
 
         Args:
-            tag_ids: Optional list of tag IDs to guide topic generation.
+            layer_state: Optional layer state dict (see prompt_builder.LayerState).
+                         If None, the seed layer defaults to "random" and other
+                         layers default to "off".
 
         Returns:
             A generated topic string.
@@ -109,8 +111,7 @@ class TopicGenerator:
         self.last_used_fallback = False
         self.last_error = None
 
-        user_tag_ids = tag_ids or []
-        instruction = build_topic_instruction(user_tag_ids)
+        instruction = build_topic_instruction(layer_state)
 
         client = self._get_active_client()
         if not client:
@@ -119,7 +120,7 @@ class TopicGenerator:
             self.last_error = "No API key configured"
             return random.choice(self._fallback_prompts)
 
-        logger.info("Generating topic with %d tags using %s", len(user_tag_ids), self.provider)
+        logger.info("Generating topic using %s", self.provider)
 
         # Determine which provider to use based on client type
         if self._claude_client and client == self._claude_client:

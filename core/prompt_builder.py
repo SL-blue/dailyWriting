@@ -1,123 +1,159 @@
 """
-The prompt builder for generating writing topics based on selected tags.
+Builds the LLM instruction from a per-layer state dict.
+
+See TAG_SYSTEM_SPEC.md for the layer model. Each of the four layers
+(territory, emotional_weather, craft, seed) is independently:
+
+    - "off"        — contributes nothing
+    - "random"     — system picks one tag from one randomly-chosen category
+                     within the layer at generation time
+    - "specified"  — user picks specific tag IDs
+
+If `layer_state` is None or omits the seed layer, seed defaults to "random".
 """
 
+from __future__ import annotations
+
 import random
-from collections import defaultdict
-from typing import List
+from typing import Dict, List, Optional
 
-from .tags import TAG_REGISTRY, Tag
+from .tags import (
+    LAYER_CATEGORIES,
+    LAYER_LABELS,
+    LAYERS,
+    TAG_REGISTRY,
+    Tag,
+)
 
 
-def build_topic_instruction(selected_tag_ids: List[str]) -> str:
+LayerState = Dict[str, Dict[str, object]]
+
+
+# Defaults the model overuses; rotated subset injected into each prompt.
+_BANNED_DEFAULTS: List[str] = [
+    "candles",
+    "rain",
+    "ticking clocks",
+    "cigarette smoke",
+    "train stations",
+    "music boxes",
+    "faded photographs",
+]
+
+
+def build_topic_instruction(layer_state: Optional[LayerState] = None) -> str:
     """
-    Given a list of tag IDs, build a natural-language instruction for the LLM
-    to generate a single story-like sentence or short paragraph that implies a story.
-    The 'elements' inside tags are used only as invisible examples for the LLM.
+    Build the LLM instruction string for a single topic generation.
+
     Args:
-        selected_tag_ids: List of selected tag IDs.
+        layer_state: Per-layer configuration. See module docstring.
+
     Returns:
-        A string containing the prompt instruction for the LLM.
+        A multi-line instruction string ready to send to the LLM.
     """
+    state = _normalize(layer_state)
+    selected = _resolve_selections(state)
+    return _format_prompt(selected)
 
-    # group tags by category (genre, mood, place, time, event, item, skill, form, ...)
-    tags_by_cat: dict[str, List[Tag]] = defaultdict(list)
-    for tid in selected_tag_ids:
-        tag = TAG_REGISTRY.get(tid)
-        if tag:
-            tags_by_cat[tag.category].append(tag)
 
-    # Helper: get visible names for genres / form
-    genre_labels = [t.label for t in tags_by_cat.get("genre", [])]
-    form_tags = tags_by_cat.get("form", [])
+# ---------------------------------------------------------------------------
+# Internals
+# ---------------------------------------------------------------------------
 
-    def pick_example_elements(cat: str, max_count: int = 3) -> List[str]:
-        """
-        Pick example elements from tags in a given category.
-        These are used as invisible inspirations for the LLM.(Invisible to user)
-        
-        Args:
-        cat: A string of description of the category
-        max_count: An int of maximum number of examples to pick
-        Return:
-        A List[str] of example elements from the given category
-        """
-        candidates: List[str] = []
-        for t in tags_by_cat.get(cat, []):
-            candidates.extend(t.elements)
-        random.shuffle(candidates)
-        return candidates[:max_count]
+def _normalize(layer_state: Optional[LayerState]) -> LayerState:
+    """Fill in defaults for layers the caller didn't specify."""
+    state: LayerState = {}
+    incoming = layer_state or {}
+    for layer in LAYERS:
+        if layer in incoming:
+            state[layer] = incoming[layer]
+        elif layer == "seed":
+            state[layer] = {"state": "random"}
+        else:
+            state[layer] = {"state": "off"}
+    return state
 
-    # Pick example elements for various dimensions
-    mood_examples   = pick_example_elements("mood", 3)
-    place_examples  = pick_example_elements("place", 3)
-    time_examples   = pick_example_elements("time", 3)
-    event_examples  = pick_example_elements("event", 3)
-    item_examples   = pick_example_elements("item", 3)
-    skill_examples  = pick_example_elements("skill", 2)
 
-    # Decide output form
-    if any(t.id == "form_sentence" for t in form_tags):
-        form_instruction = (
-            "Write exactly one sentence that reads like a moment from a story. "
-            "It should feel like the beginning or a fragment of a scene."
-        )
-    elif any(t.id == "form_paragraph" for t in form_tags):
-        form_instruction = (
-            "Write a short paragraph (2–4 sentences) that reads like a moment from a story. "
-            "It should feel like the beginning or a fragment of a scene."
-        )
+def _resolve_selections(state: LayerState) -> Dict[str, List[Tag]]:
+    """Turn each layer's config into a concrete list of selected Tags."""
+    selected: Dict[str, List[Tag]] = {}
+    for layer, conf in state.items():
+        kind = conf.get("state", "off")
+        if kind == "off":
+            continue
+        if kind == "specified":
+            tag_ids = conf.get("tag_ids", []) or []
+            tags = [TAG_REGISTRY[tid] for tid in tag_ids if tid in TAG_REGISTRY]
+            if tags:
+                selected[layer] = tags
+        elif kind == "random":
+            tag = _pick_random_for_layer(layer)
+            if tag is not None:
+                selected[layer] = [tag]
+    return selected
+
+
+def _pick_random_for_layer(layer: str) -> Optional[Tag]:
+    """
+    Pick one tag from one randomly-chosen category in the layer.
+    Seed is special-cased: choose situation OR one role category, not both.
+    """
+    if layer == "seed":
+        category_pool = ["situation", "object_role", "setting_role", "time_role"]
     else:
-        form_instruction = (
-            "Write one or two sentences that read like a moment from a story. "
-            "It should feel like the beginning or a fragment of a scene."
-        )
+        category_pool = list(LAYER_CATEGORIES[layer])
+    random.shuffle(category_pool)
+    for cat in category_pool:
+        candidates = [t for t in TAG_REGISTRY.values() if t.category == cat]
+        if candidates:
+            return random.choice(candidates)
+    return None
 
-    lines: List[str] = []
 
-    # High-level role + behavior
-    lines.append(
-        "You are a writing coach creating short story-like prompts for daily writing practice."
-    )
-    lines.append(
-        "Generate exactly one story-like snippet that implies a larger story, "
-        "rather than an instruction. It should sound as if it comes from the beginning "
-        "or a small fragment of a longer narrative."
-    )
+def _format_prompt(selected: Dict[str, List[Tag]]) -> str:
+    lines: List[str] = [
+        "You are generating a short story-like snippet for a daily writing exercise.",
+        "Output the snippet itself — do not say \"Write about…\" or address the reader.",
+        "",
+    ]
 
-    # Visible genre info
-    if genre_labels:
-        lines.append(
-            "The style/genre should be somewhere in the space suggested by these genre labels: "
-            + ", ".join(genre_labels)
-            + "."
-        )
+    for layer in LAYERS:
+        tags = selected.get(layer)
+        if not tags:
+            continue
+        directives = "; ".join(t.directive for t in tags)
+        lines.append(f"{LAYER_LABELS[layer]}: {directives}.")
 
-    # Invisible inspirations for other dimensions
-    # Tell the model clearly that these are *examples*, not mandatory phrases.
-    def add_example_block(title: str, examples: List[str]):
-        if examples:
-            joined = "; ".join(examples)
-            lines.append(
-                f"As inspiration for the {title}, think of examples like: {joined}. "
-                f"These are just references to the feeling; do NOT copy these phrases literally. "
-                f"Invent your own details that fit this space."
-            )
+    lines.append("")
+    lines.append("Invent all specifics. Avoid the most obvious imagery for this combination.")
 
-    add_example_block("atmosphere or mood", mood_examples)
-    add_example_block("setting or place", place_examples)
-    add_example_block("time or period", time_examples)
-    add_example_block("central situation or event", event_examples)
-    add_example_block("important objects or props", item_examples)
-    add_example_block("writing focus (what kind of scene to emphasize)", skill_examples)
+    banned_line = _banned_defaults_line()
+    if banned_line:
+        lines.append(banned_line)
 
-    # Output and constraints
-    lines.append(
-        "Do NOT say things like 'Write about...' or 'Describe...'. "
-        "Do NOT address the reader directly, and do NOT explain that this is a prompt. "
-        "Simply output the story-like snippet itself, as if it were taken from a story."
-    )
-    lines.append(form_instruction)
+    lines.append(_form_closing_instruction(selected.get("craft", [])))
+    lines.append("Output only the snippet.")
 
-    # final instruction string
     return "\n".join(lines)
+
+
+def _banned_defaults_line() -> str:
+    if not _BANNED_DEFAULTS:
+        return ""
+    k = min(4, len(_BANNED_DEFAULTS))
+    picks = random.sample(_BANNED_DEFAULTS, k=k)
+    return f"Do not use: {', '.join(picks)}."
+
+
+_FORM_CLOSING = {
+    "form_sentence": "Write exactly one sentence.",
+    "form_paragraph": "Write a short paragraph (2–4 sentences).",
+    "form_two_sentence": "Write exactly two sentences.",
+}
+
+
+def _form_closing_instruction(craft_tags: List[Tag]) -> str:
+    for t in craft_tags:
+        if t.category == "form" and t.id in _FORM_CLOSING:
+            return _FORM_CLOSING[t.id]
+    return "Write one or two sentences."

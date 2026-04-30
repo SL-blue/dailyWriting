@@ -1,162 +1,283 @@
-# ui/tag_selector_dialog.py
+"""
+Layer-based tag selector dialog.
 
-import random
-from typing import List, Dict
+Four cards (Territory, Emotional Weather, Craft, Seed). Each card has a
+tri-state control — Off / Random / Specified — and reveals a tag picker
+when Specified is active. Produces a `layer_state` dict consumable by
+`core.prompt_builder.build_topic_instruction`.
+"""
 
+from __future__ import annotations
+
+from typing import Dict, List
+
+from PyQt6.QtCore import QPoint, QRect, QSize, Qt
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QDialog,
-    QVBoxLayout,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QPushButton,
-    QWidget,
     QScrollArea,
+    QSizePolicy,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QSizePolicy
 
-from core.tags import TAG_REGISTRY, Tag
+from core.tags import (
+    LAYER_CATEGORIES,
+    LAYER_LABELS,
+    LAYERS,
+    Tag,
+    tags_in_category,
+)
 
+
+_LAYER_DESCRIPTIONS: Dict[str, str] = {
+    "territory": "What world are we in? Genre and tonal register.",
+    "emotional_weather": "What does the scene feel like? Mood and tension.",
+    "craft": "How is it written? Structural and stylistic constraints.",
+    "seed": "What's the spark? Situation and role-based seeds.",
+}
+
+
+_CATEGORY_LABELS: Dict[str, str] = {
+    "genre": "Genre",
+    "register": "Register",
+    "mood": "Mood",
+    "tension": "Tension",
+    "perspective": "Perspective",
+    "temporal_stance": "Temporal stance",
+    "structural_move": "Structural move",
+    "form": "Form",
+    "situation": "Situation",
+    "object_role": "Object role",
+    "setting_role": "Setting role",
+    "time_role": "Time role",
+}
+
+
+# Default state per spec: Seed → Random, others → Off.
+_DEFAULT_LAYER_STATE: Dict[str, str] = {
+    "territory": "off",
+    "emotional_weather": "off",
+    "craft": "off",
+    "seed": "random",
+}
+
+
+# ---------------------------------------------------------------------------
+# FlowLayout — wraps chip buttons across multiple rows.
+# Standard Qt FlowLayout pattern, ported to PyQt6.
+# ---------------------------------------------------------------------------
+
+class FlowLayout(QLayout):
+    def __init__(self, parent=None, margin: int = 0, spacing: int = 8):
+        super().__init__(parent)
+        if parent is not None:
+            self.setContentsMargins(margin, margin, margin, margin)
+        self.setSpacing(spacing)
+        self._items = []
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, index):
+        return self._items[index] if 0 <= index < len(self._items) else None
+
+    def takeAt(self, index):
+        return self._items.pop(index) if 0 <= index < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientation(0)
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do_layout(QRect(0, 0, width, 0), test_only=True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do_layout(rect, test_only=False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        m = self.contentsMargins()
+        size += QSize(m.left() + m.right(), m.top() + m.bottom())
+        return size
+
+    def _do_layout(self, rect: QRect, test_only: bool) -> int:
+        x = rect.x()
+        y = rect.y()
+        line_height = 0
+        spacing = self.spacing()
+        for item in self._items:
+            hint = item.sizeHint()
+            next_x = x + hint.width() + spacing
+            if next_x - spacing > rect.right() and line_height > 0:
+                x = rect.x()
+                y = y + line_height + spacing
+                next_x = x + hint.width() + spacing
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), hint))
+            x = next_x
+            line_height = max(line_height, hint.height())
+        return y + line_height - rect.y()
+
+
+# ---------------------------------------------------------------------------
+# LayerCard — controls + picker for a single layer.
+# ---------------------------------------------------------------------------
+
+class LayerCard(QWidget):
+    def __init__(self, layer: str, default_state: str = "off", parent=None):
+        super().__init__(parent)
+        self.layer = layer
+        self.setObjectName("LayerCard")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(16, 14, 16, 14)
+        outer.setSpacing(10)
+
+        header = QLabel(LAYER_LABELS[layer].upper())
+        header.setObjectName("LayerHeader")
+        outer.addWidget(header)
+
+        desc = QLabel(_LAYER_DESCRIPTIONS[layer])
+        desc.setObjectName("LayerDesc")
+        desc.setWordWrap(True)
+        outer.addWidget(desc)
+
+        # Tri-state segmented control
+        seg_row = QHBoxLayout()
+        seg_row.setContentsMargins(0, 0, 0, 0)
+        seg_row.setSpacing(0)
+
+        self._state_buttons: Dict[str, QPushButton] = {}
+        self._state_group = QButtonGroup(self)
+        self._state_group.setExclusive(True)
+
+        for caption, key in (("OFF", "off"), ("RANDOM", "random"), ("PICK", "specified")):
+            b = QPushButton(caption)
+            b.setCheckable(True)
+            b.setObjectName("StateButton")
+            b.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            self._state_buttons[key] = b
+            self._state_group.addButton(b)
+            seg_row.addWidget(b)
+
+        outer.addLayout(seg_row)
+
+        # Picker (visible only in "specified" state)
+        self._picker = QWidget()
+        self._picker.setObjectName("PickerArea")
+        picker_layout = QVBoxLayout(self._picker)
+        picker_layout.setContentsMargins(0, 6, 0, 0)
+        picker_layout.setSpacing(10)
+
+        self._tag_buttons: Dict[str, QPushButton] = {}
+        for cat in LAYER_CATEGORIES[layer]:
+            cat_label = QLabel(_CATEGORY_LABELS.get(cat, cat).upper())
+            cat_label.setObjectName("CategoryLabel")
+            picker_layout.addWidget(cat_label)
+
+            chips_wrap = QWidget()
+            flow = FlowLayout(chips_wrap, margin=0, spacing=8)
+            for tag in sorted(tags_in_category(cat), key=lambda t: t.label):
+                btn = self._make_chip(tag)
+                self._tag_buttons[tag.id] = btn
+                flow.addWidget(btn)
+            picker_layout.addWidget(chips_wrap)
+
+        outer.addWidget(self._picker)
+
+        for btn in self._state_buttons.values():
+            btn.toggled.connect(self._update_picker_visibility)
+
+        self._state_buttons[default_state].setChecked(True)
+        self._update_picker_visibility()
+
+    def _make_chip(self, tag: Tag) -> QPushButton:
+        btn = QPushButton(tag.label)
+        btn.setCheckable(True)
+        btn.setObjectName("TagButton")
+        return btn
+
+    def _update_picker_visibility(self):
+        self._picker.setVisible(self._state_buttons["specified"].isChecked())
+
+    def current_state(self) -> str:
+        for key, btn in self._state_buttons.items():
+            if btn.isChecked():
+                return key
+        return "off"
+
+    def layer_state(self) -> Dict[str, object]:
+        state = self.current_state()
+        if state == "specified":
+            tag_ids = [tid for tid, btn in self._tag_buttons.items() if btn.isChecked()]
+            return {"state": "specified", "tag_ids": tag_ids}
+        return {"state": state}
+
+
+# ---------------------------------------------------------------------------
+# TagSelectorDialog
+# ---------------------------------------------------------------------------
 
 class TagSelectorDialog(QDialog):
-    """
-    Tag selector dialog.
-
-    - GENRE: individual toggle buttons (one per genre tag)
-    - SKILL: single toggle button; when enabled, a random skill tag is chosen
-    - FORM: individual toggle buttons (sentence / paragraph tags)
-    - OTHER: three toggle buttons, for
-        * random mood tag
-        * random event tag
-        * random item tag
-
-    Internal concrete tags (elements) remain hidden and are chosen at random
-    when the corresponding button is active.
-    """
-
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Generate a random topic")
-        self.resize(520, 540)
+        self.resize(640, 720)
 
-        # ----- group tags by category -----
-        genres: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "genre"]
-        forms: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "form"]
+        self._cards: Dict[str, LayerCard] = {}
 
-        self._mood_tags: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "mood"]
-        self._event_tags: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "event"]
-        self._item_tags: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "item"]
-        self._skill_tags: List[Tag] = [t for t in TAG_REGISTRY.values() if t.category == "skill"]
-
-        # buttons for individual tag ids (genres + forms)
-        self.tag_buttons: Dict[str, QPushButton] = {}
-
-        # big toggle buttons for random categories
-        self.skill_button: QPushButton | None = None
-        self.mood_button: QPushButton | None = None
-        self.event_button: QPushButton | None = None
-        self.item_button: QPushButton | None = None
-
-        # ----- layout -----
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(32, 24, 32, 24)
         main_layout.setSpacing(16)
 
-        # Header title
-        title_label = QLabel("GENERATE A RANDOM TOPIC")
-        title_label.setObjectName("DialogTitle")
-        main_layout.addWidget(title_label)
+        title = QLabel("GENERATE A RANDOM TOPIC")
+        title.setObjectName("DialogTitle")
+        main_layout.addWidget(title)
 
-        # underline
-        line = QWidget()
-        line.setFixedHeight(2)
-        line.setObjectName("DialogUnderline")
-        main_layout.addWidget(line)
+        underline = QWidget()
+        underline.setFixedHeight(2)
+        underline.setObjectName("DialogUnderline")
+        main_layout.addWidget(underline)
 
-        # subtitle
-        subtitle = QLabel("SELECT TAGS TO DEFINE YOUR PROMPT'S FOCUS:")
+        subtitle = QLabel("CONFIGURE EACH LAYER:")
         subtitle.setObjectName("DialogSubtitle")
         main_layout.addWidget(subtitle)
 
-        # Scroll area for sections
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        center = QWidget()
-        center.setObjectName("TagPanel")   # <-- add this line
-        scroll.setWidget(center)
-        center_layout = QVBoxLayout(center)
-        center_layout.setContentsMargins(0, 8, 0, 8)
-        center_layout.setSpacing(18)
+        container = QWidget()
+        container.setObjectName("CardsContainer")
+        cards_layout = QVBoxLayout(container)
+        cards_layout.setContentsMargins(0, 8, 0, 8)
+        cards_layout.setSpacing(14)
 
+        for layer in LAYERS:
+            card = LayerCard(layer, default_state=_DEFAULT_LAYER_STATE[layer])
+            self._cards[layer] = card
+            cards_layout.addWidget(card)
 
-        # helpers
-        def add_category_label(text: str):
-            lbl = QLabel(text.upper())
-            lbl.setObjectName("CategoryLabel")
-            center_layout.addWidget(lbl)
-
-        def add_chip_row(tags: List[Tag]):
-            """Row of small toggle buttons for individual tags."""
-            if not tags:
-                return
-            row = QWidget()
-            row_layout = QHBoxLayout(row)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(14)
-
-            for t in sorted(tags, key=lambda x: x.label):
-                btn = QPushButton(t.label)
-                btn.setCheckable(True)
-                btn.setObjectName("TagButton")
-                btn.setToolTip(t.description)
-                row_layout.addWidget(btn)
-                self.tag_buttons[t.id] = btn
-
-            row_layout.addStretch()
-            center_layout.addWidget(row)
-
-        def add_big_toggle(text: str) -> QPushButton:
-            """A wide toggle button for aggregated random categories."""
-            btn = QPushButton(text)
-            btn.setCheckable(True)
-            btn.setObjectName("BigToggleButton")
-            btn.setSizePolicy(
-                QSizePolicy.Policy.Expanding,
-                QSizePolicy.Policy.Fixed
-            )
-            center_layout.addWidget(btn)
-            return btn
-
-        # GENRE section (individual tag buttons)
-        add_category_label("Genre")
-        add_chip_row(genres)
-
-        # SKILL section (single aggregate toggle)
-        if self._skill_tags:
-            add_category_label("Skill")
-            self.skill_button = add_big_toggle("Include a random writing focus")
-
-        # FORM section (sentence / paragraph)
-        add_category_label("Form")
-        add_chip_row(forms)
-
-        # OTHER section (Mood / Event / Item)
-        if self._mood_tags or self._event_tags or self._item_tags:
-            add_category_label("Other")
-
-        if self._mood_tags:
-            self.mood_button = add_big_toggle("Include a random mood emphasis")
-
-        if self._event_tags:
-            self.event_button = add_big_toggle("Include a random central event")
-
-        if self._item_tags:
-            self.item_button = add_big_toggle("Include a random important object")
-
-        center_layout.addStretch()
+        cards_layout.addStretch()
+        scroll.setWidget(container)
         main_layout.addWidget(scroll, 1)
 
-        # bottom buttons: Cancel / Generate
+        # Bottom buttons
         bottom_row = QHBoxLayout()
         bottom_row.setSpacing(16)
 
@@ -176,53 +297,17 @@ class TagSelectorDialog(QDialog):
 
         self._apply_style()
 
-    # ----- public API -----
-
-    def selected_tags(self) -> List[str]:
-        """
-        Return selected tag IDs.
-
-        - Genre/Form: IDs for each button that is checked.
-        - Skill: if button checked, choose one random skill tag ID.
-        - Other (mood/event/item): if button checked, choose one random tag
-          from that category.
-        """
-        selected: List[str] = [
-            tid for tid, btn in self.tag_buttons.items() if btn.isChecked()
-        ]
-
-        # skill
-        if self.skill_button and self.skill_button.isChecked() and self._skill_tags:
-            selected.append(random.choice(self._skill_tags).id)
-
-        # mood
-        if self.mood_button and self.mood_button.isChecked() and self._mood_tags:
-            selected.append(random.choice(self._mood_tags).id)
-
-        # event
-        if self.event_button and self.event_button.isChecked() and self._event_tags:
-            selected.append(random.choice(self._event_tags).id)
-
-        # item
-        if self.item_button and self.item_button.isChecked() and self._item_tags:
-            selected.append(random.choice(self._item_tags).id)
-
-        return selected
-
-    # ----- styling -----
+    def selected_layer_state(self) -> Dict[str, Dict[str, object]]:
+        return {layer: card.layer_state() for layer, card in self._cards.items()}
 
     def _apply_style(self):
-        """Dialog-local stylesheet: buttons instead of checkboxes."""
         self.setStyleSheet("""
         QDialog {
             background-color: #ffffff;
         }
-
-        QWidget#TagPanel {
+        QWidget#CardsContainer {
             background-color: #ffffff;
-            border: none;
         }
-
         QScrollArea {
             background: transparent;
             border: none;
@@ -241,50 +326,66 @@ class TagSelectorDialog(QDialog):
             font-size: 14px;
             font-weight: 600;
             margin-top: 8px;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             color: #111111;
         }
+
+        QWidget#LayerCard {
+            background-color: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+        }
+        QLabel#LayerHeader {
+            font-size: 15px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            color: #111111;
+        }
+        QLabel#LayerDesc {
+            font-size: 12px;
+            color: #666666;
+        }
         QLabel#CategoryLabel {
-            font-size: 14px;
+            font-size: 11px;
             font-weight: 700;
-            margin-top: 16px;
-            margin-bottom: 4px;
-            color: #111111;   /* if you keep the dark outer rect; change to #111111 if you drop it */
+            letter-spacing: 0.5px;
+            color: #555555;
+            margin-top: 4px;
         }
 
-        /* small “chip” buttons (Genre / Form) */
+        /* Tri-state segmented control */
+        QPushButton#StateButton {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 8px 12px;
+            border: 1px solid #cccccc;
+            background-color: #ffffff;
+            color: #111111;
+        }
+        QPushButton#StateButton:hover {
+            background-color: #f0f0f0;
+        }
+        QPushButton#StateButton:checked {
+            background-color: #111111;
+            color: #ffffff;
+            border-color: #111111;
+        }
+
+        /* Tag chips */
         QPushButton#TagButton {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 600;
-            padding: 6px 12px;
+            padding: 5px 10px;
             border-radius: 4px;
-            border: 1px solid transparent;
-            background-color: transparent;
-            color: #000000;              /* normal text black */
+            border: 1px solid #cccccc;
+            background-color: #ffffff;
+            color: #111111;
         }
         QPushButton#TagButton:hover {
-            border-color: #cccccc;
+            background-color: #f0f0f0;
         }
         QPushButton#TagButton:checked {
-            background-color: #111111;
-            color: #ffffff;              /* active = dark bg + white text */
-        }
-
-        /* big toggle buttons (Skill / Other) */
-        QPushButton#BigToggleButton {
-            font-size: 13px;
-            font-weight: 500;
-            padding: 8px 12px;
-            border-radius: 4px;
-            border: 1px solid #dddddd;
-            background-color: #f5f5f5;
-            text-align: left;
-            color: #000000;              /* normal text black */
-        }
-        QPushButton#BigToggleButton:hover {
-            background-color: #eaeaea;
-        }
-        QPushButton#BigToggleButton:checked {
             background-color: #111111;
             color: #ffffff;
             border-color: #111111;
@@ -300,7 +401,6 @@ class TagSelectorDialog(QDialog):
         QPushButton#SecondaryButton:hover {
             background-color: #c6c6c6;
         }
-
         QPushButton#PrimaryButton {
             background-color: #6ee7c8;
             color: #000000;

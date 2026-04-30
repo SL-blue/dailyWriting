@@ -5,6 +5,27 @@ All notable changes to DailyWriting will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-04-29
+
+### Added
+- **Layered tag system** for AI prompt generation. Four layers (Territory, Emotional Weather, Craft, Seed) over 12 categories, replacing the previous flat tag list
+- **Tri-state controls per layer** in the random topic dialog: OFF / RANDOM / PICK, each independently configurable
+- **Seed defaults to Random** when no layer state is provided — clicking *Generate* always produces a varied prompt out of the box
+- **Anti-repetition mechanism** in every LLM call: rotating "Do not use" list (candles, rain, ticking clocks, music boxes, …) to push the model away from cliché imagery
+- 19 new tests covering the layer-based prompt builder (134 total tests)
+
+### Changed
+- `Tag` schema replaced: `description` and `elements` (concrete noun lists) removed; `layer` and `directive` added. The old `elements` field caused the model to anchor on repeated nouns
+- LLM prompt is now structurally clean — one line per active layer — instead of the previous "writing coach" preamble with example blocks
+- `topic_generator.generate_topic()` signature: takes a `layer_state` dict instead of a flat `tag_ids` list
+- `tag_selector_dialog.py` redesigned as four layer cards with disclosed pickers in PICK mode
+
+### Removed
+- Old categories: `place`, `time`, `event`, `item`, `skill` — superseded by `setting_role`, `time_role`, `situation`, `object_role`, and the Craft layer
+- "Writing coach" preamble and per-category example blocks in the LLM instruction
+
+---
+
 ## [1.1.0] - 2026-04-29
 
 ### Added
